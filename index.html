@@ -119,8 +119,17 @@ function ss(k,v){try{if(v===undefined)return sessionStorage.getItem(k);sessionSt
 
 /* Los datos viven dentro del propio archivo (bloque #data) */
 let S=JSON.parse($("data").textContent);
-function defaultAgent(){return{enabled:false,hour:"08:00",days:["1","2","3","4","5","6","0"],sources:[],keywords:[],exclude:[],places:[],modalities:["Remoto","Híbrido","Presencial"],levels:["Prácticas","Junior"],maxPerDay:10,minFit:"medio",lastRun:""}}
-function normalize(){S.profile.langs=S.profile.langs||[];S.rev=S.rev||0;S.agent=Object.assign(defaultAgent(),S.agent||{});S.apps.forEach(a=>{if(a.country===undefined)a.country=""})}
+function migrateSearch(){
+  const old=S.agent,base={sources:[],topN:5,extra:""};
+  if(!S.search){
+    S.search=base;
+    if(old&&Array.isArray(old.sources))S.search.sources=old.sources.map(s=>({name:s.name,url:s.url,mode:"todas"}));
+  }else S.search=Object.assign(base,S.search);
+  if(!Array.isArray(S.search.sources))S.search.sources=[];
+  S.search.sources.forEach(s=>{if(s.mode!=="mejores")s.mode="todas"});
+  delete S.agent;
+}
+function normalize(){S.profile.langs=S.profile.langs||[];S.rev=S.rev||0;migrateSearch();S.apps.forEach(a=>{if(a.country===undefined)a.country=""})}
 normalize();
 let chat=[];try{chat=JSON.parse(ss("chat")||"[]")}catch(e){}
 let filt=Object.assign({q:"",st:"all",mod:"all",fit:"all",country:"all",city:"all"},(()=>{try{return JSON.parse(ss("filt")||"{}")}catch(e){return{}}})());
@@ -207,123 +216,25 @@ async function exportData(){
   }catch(e){if(!e||e.code!=="declined")toast("No se pudo exportar")}
 }
 
-/* ===== Modo archivo local (HTML abierto desde el ordenador, sin Claude) ===== */
+/* ===== Guardado: copia en el navegador + GitHub ===== */
 const LS="panel-empleo-datos",DATA_NAME="panel-empleo-datos.json";
-let fileHandle=null,fileMode="",needPerm=false,reconnecting=false;
-const FSA=typeof window.showOpenFilePicker==="function";
-const JSON_TYPES=[{description:"Datos del panel (JSON)",accept:{"application/json":[".json"]}}];
-function idb(){return new Promise((res,rej)=>{const r=indexedDB.open("panel-empleo",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
-async function kvGet(k){const db=await idb();return new Promise((res,rej)=>{const q=db.transaction("kv").objectStore("kv").get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}
-async function kvSet(k,v){const db=await idb();return new Promise((res,rej)=>{const q=db.transaction("kv","readwrite").objectStore("kv").put(v,k);q.onsuccess=()=>res();q.onerror=()=>rej(q.error)})}
-function dataFile(create){
-  if(fileMode==="dir")return fileHandle.getFileHandle(DATA_NAME,{create:!!create});
-  return Promise.resolve(fileHandle);
-}
-function linkName(){return fileMode==="dir"?"la carpeta «"+fileHandle.name+"» (archivo "+DATA_NAME+")":fileHandle.name}
 async function localSave(){
   try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}
-  const ok=[],err=[];
-  if(fileHandle){
-    try{
-      if(await fileHandle.queryPermission({mode:"readwrite"})!=="granted"){
-        needPerm=true;renderLinkBar();err.push("el archivo necesita que pulses Reconectar");
-      }else{
-        const fh=await dataFile(true);
-        const w=await fh.createWritable();
-        await w.write(fileMode==="html"?buildDoc():JSON.stringify(S,null,2));
-        await w.close();
-        ok.push(fileMode==="dir"?DATA_NAME:fileHandle.name);
-      }
-    }catch(e){err.push("archivo: "+((e&&(e.message||e.name))||"error"))}
-  }
   if(ghOn()){
     markDirty();
-    try{await ghFlush();ok.push("GitHub")}catch(e){err.push("GitHub: "+((e&&e.message)||"error"))}
+    try{await ghFlush();pending=false;setSave("Guardado en GitHub ✓")}
+    catch(e){pending=true;setSave("No se pudo guardar en GitHub: "+((e&&e.message)||"error")+" (los datos siguen en este navegador)",true)}
+  }else{
+    pending=false;
+    setSave("Guardado solo en este navegador. Conecta GitHub en Agente IA para tener copia en la nube.");
   }
-  pending=err.length>0;
-  if(err.length)setSave("Problema al guardar: "+err.join(" · ")+(ok.length?" (sí se guardó en "+ok.join(" y ")+")":""),true);
-  else if(ok.length)setSave("Guardado en "+ok.join(" y ")+" ✓");
-  else setSave("Guardado solo en este navegador. Configura GitHub o una carpeta en Agente IA.");
-}
-async function readLinked(){
-  if(!fileHandle||fileMode==="html")return;
-  try{
-    const fh=await dataFile(false);
-    const t=await (await fh.getFile()).text();
-    if(t.trim()){const r=JSON.parse(t);if(r&&r.apps&&r.profile&&(r.rev||0)>(S.rev||0)){S=r;normalize();render()}}
-  }catch(e){}
-}
-async function reconnect(){
-  if(reconnecting||!fileHandle)return;
-  reconnecting=true;
-  try{
-    if(await fileHandle.requestPermission({mode:"readwrite"})==="granted"){
-      needPerm=false;await readLinked();render();renderLinkBar();setSave("Archivo reconectado ✓");
-    }
-  }catch(e){}
-  reconnecting=false;
 }
 async function initLocal(){
   if(HAS_CL)return;
   try{const r=JSON.parse(localStorage.getItem(LS)||"null");if(r&&r.apps&&(r.rev||0)>(S.rev||0)){S=r;normalize();render()}}catch(e){}
-  if(FSA){
-    try{
-      const k=await kvGet("handle");
-      if(k&&k.h){
-        fileHandle=k.h;fileMode=k.mode;
-        if(await fileHandle.queryPermission({mode:"readwrite"})==="granted")await readLinked();
-        else{needPerm=true;document.addEventListener("click",()=>{if(needPerm)reconnect()},{once:true})}
-      }
-    }catch(e){}
-  }
   renderLinkBar();
   if(ghOn())ghSync(false);
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&ghOn()&&!pending)ghSync(false)});
-}
-async function finishLink(h,mode){
-  const p=await h.requestPermission({mode:"readwrite"});
-  if(p!=="granted"){toast("Permiso denegado");return}
-  fileHandle=h;fileMode=mode;needPerm=false;
-  try{await kvSet("handle",{h:h,mode:mode})}catch(e){}
-  renderLinkBar();save();
-}
-async function linkDir(){
-  try{
-    const h=await showDirectoryPicker({mode:"readwrite",id:"panel-empleo"});
-    let existing=null;
-    try{existing=await h.getFileHandle(DATA_NAME)}catch(e){}
-    if(existing){
-      let d=null;
-      try{d=JSON.parse(await (await existing.getFile()).text())}catch(e){}
-      if(d&&d.apps&&d.profile&&confirm("En esa carpeta ya hay un archivo de datos del panel.\n\nAceptar: cargar sus datos (sustituyen los actuales).\nCancelar: sobrescribirlo con los datos actuales.")){S=d;normalize();render()}
-    }
-    await finishLink(h,"dir");
-  }catch(e){if(!e||e.name!=="AbortError")toast("No se pudo usar esa carpeta. Prueba con una carpeta propia, no Documentos o Escritorio directamente.")}
-}
-async function linkNewJson(){
-  try{const h=await showSaveFilePicker({suggestedName:DATA_NAME,types:JSON_TYPES});await finishLink(h,"json")}
-  catch(e){if(!e||e.name!=="AbortError")toast("No se pudo crear el archivo")}
-}
-async function linkOpenJson(){
-  try{
-    const r=await showOpenFilePicker({types:JSON_TYPES});
-    const d=JSON.parse(await (await r[0].getFile()).text());
-    if(!d||!d.apps||!d.profile)throw new Error("formato");
-    S=d;normalize();render();
-    await finishLink(r[0],"json");
-  }catch(e){if(e&&e.name==="AbortError")return;toast("No es un archivo de datos válido")}
-}
-async function linkHtml(){
-  try{
-    const r=await showOpenFilePicker({types:[{description:"Panel (HTML)",accept:{"text/html":[".html",".htm"]}}]});
-    await finishLink(r[0],"html");
-  }catch(e){if(!e||e.name!=="AbortError")toast("No se pudo abrir el archivo")}
-}
-function unlink(){
-  if(!confirm("Se dejará de guardar en ese archivo (el archivo y sus datos no se borran). ¿Continuar?"))return;
-  fileHandle=null;fileMode="";needPerm=false;
-  kvSet("handle",null).catch(()=>{});
-  renderLinkBar();
 }
 function importPick(){
   const i=document.createElement("input");i.type="file";i.accept=".json,application/json";
@@ -337,46 +248,20 @@ function importPick(){
   };
   i.click();
 }
-function storageHtml(){
-  const exp='<button class="btn sec sm" id="scExp">Exportar copia</button><button class="btn sec sm" id="scImp">Importar copia</button>';
-  if(HAS_CL)return '<h3 class="sect">Guardado de datos</h3><p class="muted" style="margin-top:0">Estás usando el panel desde el enlace publicado en Claude: los datos se guardan dentro de la propia página y en tu cuenta. Para guardarlos en una carpeta de tu ordenador, abre el archivo HTML descargado (con Chrome o Edge) y configúralo aquí.</p><div class="row">'+exp+'</div>';
-  let h='<h3 class="sect">Guardado de datos en tu ordenador</h3>';
-  if(!FSA)return h+'<p class="muted" style="margin-top:0">Este navegador no puede guardar directamente en archivos (usa Chrome o Edge). Los datos quedan en este navegador y puedes llevarlos con Exportar e Importar copia.</p><div class="row">'+exp+'</div>';
-  if(fileHandle)h+='<p style="margin-top:0">Vinculado a <b>'+esc(linkName())+'</b>. '+(needPerm?'<b>Falta tu permiso para seguir guardando.</b>':'Cada cambio se guarda ahí automáticamente.')+'</p>';
-  else h+='<p class="muted" style="margin-top:0">Todavía no hay ningún archivo vinculado: ahora mismo los datos solo están en la memoria de este navegador.</p>';
-  h+='<div class="row">';
-  if(fileHandle&&needPerm)h+='<button class="btn sm" id="scRe">Reconectar</button>';
-  h+='<button class="btn'+(fileHandle?' sec':'')+' sm" id="scDir">'+(fileHandle?'Cambiar carpeta':'Elegir carpeta de datos')+'</button>'
-   +'<button class="btn sec sm" id="scNew">Crear archivo de datos nuevo</button>'
-   +'<button class="btn sec sm" id="scOpen">Abrir archivo de datos existente</button>';
-  if(fileHandle)h+='<button class="btn sec sm" id="scUnlink">Desvincular</button>';
-  h+=exp+'</div>';
-  h+='<p class="muted" style="font-size:13px;margin-bottom:0">Elige una carpeta propia (por ejemplo una llamada PanelEmpleo dentro de Documentos): el navegador no deja elegir directamente Documentos, Escritorio ni Descargas. La carpeta se recuerda; al abrir el panel otro día, tu navegador puede volver a pedir permiso. Si el aviso ofrece «Permitir en cada visita», elígelo. Si no, saldrá un botón Reconectar y basta un clic.</p>';
-  h+='<details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:13px">Opción avanzada</summary><div class="row" style="margin-top:8px"><button class="btn sec sm" id="scHtml">Guardar dentro de este mismo HTML</button><span class="muted" style="font-size:13px">Elige este mismo archivo; los datos quedarán incrustados en él.</span></div></details>';
-  return h;
-}
-function renderStorageCard(){
-  const c=$("storageCard");if(!c)return;
-  c.innerHTML=storageHtml();
-  const on=(id,f)=>{const b=$(id);if(b)b.onclick=f};
-  on("scDir",linkDir);on("scNew",linkNewJson);on("scOpen",linkOpenJson);on("scHtml",linkHtml);
-  on("scUnlink",unlink);on("scRe",reconnect);on("scExp",exportData);on("scImp",importPick);
-  renderGhCard();
-}
 function renderLinkBar(){
   const el=$("linkBar");
   if(el){
-    const show=!HAS_CL&&((fileHandle&&needPerm)||(!fileHandle&&!ghOn()));
-    if(!show){el.className="hidden";el.innerHTML=""}
+    if(HAS_CL||ghOn()){el.className="hidden";el.innerHTML=""}
     else{
       el.className="linkbar";
-      if(fileHandle)el.innerHTML='<span>Archivo de datos vinculado: <b>'+esc(fileHandle.name)+'</b>. Hace falta tu permiso para seguir guardando.</span><button class="btn sm" id="lbRe">Reconectar</button>';
-      else el.innerHTML='<span>Aún no has configurado dónde guardar tus datos (GitHub o una carpeta): lo que hagas solo se guarda en este navegador.</span><button class="btn sm" id="lbCfg">Configurar guardado</button>';
-      const re=$("lbRe");if(re)re.onclick=reconnect;
-      const cf=$("lbCfg");if(cf)cf.onclick=()=>{showTab("agent");const c=$("ghCard")||$("storageCard");if(c)c.scrollIntoView({behavior:"smooth"})};
+      el.innerHTML='<span>Aún no has conectado GitHub: lo que hagas solo se guarda en este navegador.</span><button class="btn sm" id="lbCfg">Conectar GitHub</button>';
+      $("lbCfg").onclick=()=>{showTab("agent");const c=$("ghCard");if(c)c.scrollIntoView({behavior:"smooth"})};
     }
   }
-  renderStorageCard();
+  renderGhCard();
+}
+function backupHtml(){
+  return '<div class="row" style="margin-top:12px"><span class="muted" style="font-size:13px">Copia de seguridad:</span><button class="btn sec sm" id="scExp">Exportar copia</button><button class="btn sec sm" id="scImp">Importar copia</button></div>';
 }
 /* ===== Sincronización con GitHub (repositorio privado de datos) ===== */
 const GH_KEY="panel-empleo-gh",DIRTY_KEY="panel-empleo-dirty";
@@ -469,10 +354,10 @@ async function ghSync(manual){
     }
     gh.last=Date.now();ghSaveCfg();
   }catch(e){setSave("GitHub: "+((e&&e.message)||"error"),true)}
-  ghBusy=false;renderStorageCard();
+  ghBusy=false;renderGhCard();
 }
 function ghHtml(){
-  if(HAS_CL)return '<h3 class="sect">Sincronización con GitHub</h3><p class="muted" style="margin:0">No está disponible dentro del enlace de Claude. Funciona al abrir el panel desde tu página de GitHub Pages o desde el archivo descargado.</p>';
+  if(HAS_CL)return '<h3 class="sect">Sincronización con GitHub</h3><p class="muted" style="margin:0">No está disponible dentro del enlace de Claude. Funciona al abrir el panel desde tu página de GitHub Pages.</p>'+backupHtml();
   const on=ghOn();
   let h='<h3 class="sect">Sincronización con GitHub (acceso desde cualquier dispositivo)</h3>';
   h+=on?'<p style="margin-top:0">Conectado a <b>'+esc(gh.owner+"/"+gh.repo)+'</b> · archivo <b>'+esc(gh.path)+'</b>'+(gh.last?' · última sincronización '+new Date(gh.last).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}):"")+'. Cada cambio se guarda también ahí.</p>'
@@ -483,6 +368,7 @@ function ghHtml(){
    +'<div><label>Token de acceso</label><input id="ghToken" type="password" autocomplete="off" placeholder="'+(on?"guardado en este navegador (vacío = conservarlo)":"github_pat_…")+'"></div></div>';
   h+='<div class="row" style="margin-top:12px"><button class="btn sm" id="ghConnect">'+(on?"Guardar cambios y probar":"Conectar y probar")+'</button>'+(on?'<button class="btn sec sm" id="ghNow">Sincronizar ahora</button><button class="btn sec sm" id="ghOff">Desconectar</button>':"")+'</div>';
   h+='<p class="muted" style="font-size:13px;margin-bottom:0">El token se guarda solo en este navegador y hay que ponerlo una vez en cada dispositivo. Usa un token limitado a ese único repositorio y no lo compartas con nadie.</p>';
+  h+=backupHtml();
   return h;
 }
 function renderGhCard(){
@@ -498,81 +384,124 @@ function renderGhCard(){
     ghSaveCfg();renderLinkBar();await ghSync(true);
   });
   on("ghNow",()=>ghSync(true));
+  on("scExp",exportData);on("scImp",importPick);
   on("ghOff",()=>{
     if(!confirm("Se desconectará GitHub en este navegador (tus datos en GitHub no se borran). ¿Continuar?"))return;
     gh=null;try{localStorage.removeItem(GH_KEY)}catch(e){}
     renderLinkBar();
   });
 }
-/* ===== Ajustes del agente de ofertas ===== */
-const DAYS=[["1","L"],["2","M"],["3","X"],["4","J"],["5","V"],["6","S"],["0","D"]];
-const LEVELS=["Prácticas","Junior","Intermedio","Senior"];
-const SUGG=[["LinkedIn Jobs","https://www.linkedin.com/jobs"],["InfoJobs","https://www.infojobs.net"],["ArtStation Jobs","https://www.artstation.com/jobs"],["Hitmarker","https://hitmarker.net"],["GamesIndustry.biz Jobs","https://jobs.gamesindustry.biz"]];
+/* ===== Buscar ofertas con Claude: generador de prompt ===== */
+const SUGG=[["LinkedIn Jobs","https://www.linkedin.com/jobs","mejores"],["ArtStation Jobs","https://www.artstation.com/jobs","mejores"],["InfoJobs","https://www.infojobs.net","mejores"],["Hitmarker","https://hitmarker.net","todas"],["GamesIndustry.biz Jobs","https://jobs.gamesindustry.biz","todas"]];
 function agentText(){
-  const g=S.agent;
-  return (g.enabled?"activada":"desactivada")+", a las "+g.hour+"; páginas: "+(g.sources.map(s=>s.name+" ("+s.url+")").join(", ")||"ninguna")+"; palabras clave: "+(g.keywords.join(", ")||"-")+"; excluir: "+(g.exclude.join(", ")||"-")+"; lugares: "+(g.places.join(", ")||"-")+"; modalidades: "+g.modalities.join("/")+"; niveles: "+g.levels.join("/")+"; encaje mínimo: "+g.minFit+"; máx. "+g.maxPerDay+" al día";
+  const g=S.search;
+  return g.sources.length?g.sources.map(s=>s.name+" ("+s.url+", "+(s.mode==="mejores"?"solo las mejores":"todas las que encajen")+")").join("; "):"ninguna indicada";
 }
-function readAgentCfg(){
-  const g=S.agent;
-  const e=$("agEnabled");if(!e)return;
-  g.enabled=e.value==="1";
-  g.hour=$("agHour").value||g.hour;
-  g.maxPerDay=Math.max(1,Math.min(50,parseInt($("agMax").value,10)||g.maxPerDay));
-  g.minFit=$("agFit").value;
+function buildPrompt(){
+  const p=S.profile,g=S.search,L=[];
+  const v=x=>(x&&String(x).trim())?String(x).trim():"(sin indicar)";
+  const lst=a=>a&&a.length?a.join(", "):"(sin indicar)";
+  L.push("Quiero que actúes como buscador de ofertas de empleo para mí. Usa la búsqueda web y abre las páginas que te indico más abajo. Fecha de hoy: "+new Date().toLocaleDateString("es-ES")+". Responde en español.");
+  L.push("");
+  L.push("## MI PERFIL");
+  L.push("- Nombre: "+v(p.name));
+  L.push("- Titular: "+v(p.headline));
+  L.push("- Ubicación: "+v(p.location));
+  L.push("- Modalidad que suelo preferir: "+v(p.modality)+" (pero quiero ver las tres modalidades)");
+  L.push("- Idiomas: "+lst(p.langs));
+  L.push("- Roles que busco: "+lst(p.targetRoles));
+  L.push("- Skills y software: "+lst(p.skills));
+  L.push("- Formación: "+v(p.education));
+  L.push("- Experiencia: "+v(p.experience));
+  L.push("- Portfolio: "+v(p.portfolio));
+  if(p.notes&&p.notes.trim())L.push("- Notas: "+p.notes.trim());
+  L.push("");
+  L.push("## DÓNDE BUSCAR");
+  if(g.sources.length){
+    g.sources.forEach(s=>L.push("- "+s.name+" ("+s.url+") → "+(s.mode==="mejores"?"solo las "+g.topN+" ofertas que mejor encajen con mi perfil":"TODAS las ofertas abiertas que encajen con mi perfil")));
+  }else L.push("- No he indicado páginas: busca en las principales webs de empleo de videojuegos y en las webs de carreras de estudios relevantes.");
+  L.push("");
+  L.push("## QUÉ CUENTA COMO ENCAJAR");
+  L.push("- El puesto es uno de los roles que busco o muy cercano a ellos.");
+  L.push("- El nivel es acorde con la experiencia que te indico arriba. Incluye prácticas y puestos junior, y descarta los que pidan mucha más experiencia de la que tengo.");
+  L.push("- Las herramientas que piden coinciden en buena parte con mis skills.");
+  L.push("- Incluye solo ofertas con encaje \"medio\" o \"probable\".");
+  L.push("");
+  L.push("## REGLAS");
+  L.push("- Solo ofertas que estén abiertas ahora y que hayas visto de verdad en la página. No inventes ofertas, datos ni enlaces.");
+  L.push("- Pon el enlace directo a la oferta. Si solo encuentras un agregador, pon ese enlace y avísame en las notas.");
+  L.push("- Si una página no se deja leer (por ejemplo, bloquea el acceso o pide iniciar sesión), dímelo en vez de rellenar con otras cosas.");
+  L.push("- Si no sabes el país, la ciudad o la modalidad, déjalo vacío y dímelo en las notas. No lo adivines.");
+  L.push("");
+  L.push("## CLASIFICACIÓN EN TRES APARTADOS");
+  L.push("1. Prácticas: prácticas, becas, internships, trainee o apprenticeship, estén donde estén.");
+  L.push("2. En España o en remoto: ofertas que no sean prácticas, en España con cualquier modalidad o remotas en cualquier país.");
+  L.push("3. Presencial o híbrido fuera de España: ofertas que no sean prácticas.");
+  L.push("");
+  L.push("## FORMATO DE LA RESPUESTA");
+  L.push("Primero, un resumen legible agrupado en esos tres apartados: empresa, puesto, ciudad y país, modalidad, encaje y una línea con el motivo.");
+  L.push("Después, un único bloque de código JSON con todas las ofertas, para pegarlo en mi panel. Es una lista de objetos con esta forma exacta:");
+  L.push('[{"company":"","role":"","url":"","country":"","city":"","modality":"","fit":"","kind":"","notes":""}]');
+  L.push("- country: nombre del país en español.");
+  L.push('- modality: solo "Remoto", "Híbrido" o "Presencial" (o "" si no lo sabes).');
+  L.push('- fit: "medio" o "probable", según lo bien que encaja con mi perfil.');
+  L.push('- kind: "practicas" si es de prácticas y "no" si no lo es.');
+  L.push("- notes: por qué encaja, dudas, la fecha de publicación si la ves, y si ya me presenté a esa empresa.");
+  const names=[...new Set(S.apps.filter(a=>!a.radar&&a.company&&a.company!=="Sin identificar").map(a=>a.company))].sort((x,y)=>x.localeCompare(y,"es"));
+  if(names.length){
+    L.push("");
+    L.push("## EMPRESAS A LAS QUE YA ME HE PRESENTADO");
+    L.push("Avísame en las notas si una oferta es de una de ellas, pero no la excluyas si el puesto es distinto.");
+    L.push(names.join("; "));
+  }
+  if(g.extra&&g.extra.trim()){
+    L.push("");
+    L.push("## INDICACIÓN EXTRA PARA ESTA BÚSQUEDA");
+    L.push(g.extra.trim());
+  }
+  return L.join("\n");
 }
-function agentCfgHtml(){
-  const g=S.agent;
-  const tags=(arr,k)=>arr.map((s,i)=>`<span class="tag">${esc(s)}<button data-ak="${k}" data-i="${i}" title="Quitar">×</button></span>`).join("")||'<span class="muted" style="font-size:13px">Ninguno todavía</span>';
-  const tog=(opts,sel,k)=>opts.map(o=>{const v=Array.isArray(o)?o[0]:o,l=Array.isArray(o)?o[1]:o;return `<button type="button" class="chip ${sel.includes(v)?"on":""}" data-tg="${k}" data-v="${esc(v)}">${esc(l)}</button>`}).join("");
-  const adder=(k,ph)=>`<div class="row" style="margin-top:6px"><input id="agIn_${k}" placeholder="${ph}" style="max-width:280px"><button class="btn sec sm" data-addl="${k}">Añadir</button></div>`;
+function searchHtml(){
+  const g=S.search;
+  const modeSel=(i,cur)=>'<select data-sm="'+i+'" style="width:auto"><option value="todas" '+(cur!=="mejores"?"selected":"")+'>Todas las que encajen</option><option value="mejores" '+(cur==="mejores"?"selected":"")+'>Solo las que más encajen</option></select>';
   const missing=SUGG.filter(s=>!g.sources.some(x=>x.url===s[1]));
-  return `<div class="row" style="justify-content:space-between"><h3 class="sect" style="margin:0;font-size:16px">Actualización diaria de ofertas</h3><button class="btn sm" id="agSave">Guardar ajustes</button></div>
-  <div class="note" style="margin:10px 0 14px">Estos ajustes se guardan con el resto de tus datos. La búsqueda automática todavía no está en marcha: es el siguiente paso, y cuando exista leerá lo que configures aquí. Pulsa <b>Guardar ajustes</b> cuando termines.</div>
-  <div class="grid3">
-    <div><label>Actualización diaria</label><select id="agEnabled"><option value="0">Desactivada</option><option value="1" ${g.enabled?"selected":""}>Activada</option></select></div>
-    <div><label>Hora de actualización (hora de Madrid)</label><input type="time" id="agHour" value="${esc(g.hour)}"></div>
-    <div><label>Máximo de ofertas nuevas al día</label><input type="number" id="agMax" min="1" max="50" value="${g.maxPerDay}"></div>
-  </div>
-  <label>Días en los que actualizar</label><div class="chips">${tog(DAYS,g.days,"days")}</div>
-  <label>Páginas que debe comprobar sí o sí (webs de empleo o de carreras de estudios)</label>
-  ${g.sources.length?g.sources.map((s,i)=>`<div class="row" style="margin:4px 0"><b>${esc(s.name)}</b><a class="olink" href="${esc(s.url)}" target="_blank" rel="noopener" style="font-size:13px;word-break:break-all">${esc(s.url)}</a><button class="btn sec sm" data-rs="${i}">×</button></div>`).join(""):'<div class="muted" style="font-size:13px">Ninguna todavía.</div>'}
-  <div class="row" style="margin-top:6px"><input id="agSrcName" placeholder="Nombre (ej. Web de carreras de Ubisoft)" style="max-width:280px"><input id="agSrcUrl" placeholder="https://…" style="max-width:340px"><button class="btn sec sm" id="agSrcAdd">Añadir página</button></div>
-  ${missing.length?`<div class="muted" style="font-size:13px;margin-top:8px">Sugerencias (comprueba que te sirvan): ${missing.map((s,i)=>`<button type="button" class="chip" data-sg="${SUGG.indexOf(s)}">+ ${esc(s[0])}</button>`).join(" ")}</div>`:""}
-  <label>Palabras clave de los puestos (además de tus roles objetivo)</label><div>${tags(g.keywords,"keywords")}</div>${adder("keywords","Ej. creature artist")}
-  <label>Palabras a excluir</label><div>${tags(g.exclude,"exclude")}</div>${adder("exclude","Ej. senior, lead")}
-  <label>Países o ciudades de interés</label><div>${tags(g.places,"places")}</div>${adder("places","Ej. España, Reino Unido, Madrid")}
-  <label>Modalidades que me interesan</label><div class="chips">${tog(MODS,g.modalities,"modalities")}</div>
-  <label>Niveles que me interesan</label><div class="chips">${tog(LEVELS,g.levels,"levels")}</div>
-  <div class="grid3"><div><label>Avisarme solo si el encaje es al menos</label><select id="agFit">${FITS.map(f=>`<option value="${f[0]}" ${g.minFit===f[0]?"selected":""}>${f[1]}</option>`).join("")}</select></div></div>
-  <p class="muted" style="font-size:13px;margin-bottom:0">Última actualización automática: ${g.lastRun?esc(g.lastRun):"ninguna todavía"}.</p>`;
+  return '<h3 class="sect" style="margin:0 0 4px;font-size:16px">Buscar ofertas con Claude</h3>'
+  +'<p class="muted" style="margin:0 0 12px">1) Indica en qué páginas quieres que busque. 2) Copia el prompt. 3) Pégalo en un chat de Claude (con la búsqueda web activada), copia el bloque JSON que te devuelva y pégalo en <b>Radar de ofertas → Importar ofertas</b>.</p>'
+  +'<label>Páginas donde buscar</label>'
+  +(g.sources.length?g.sources.map((s,i)=>'<div class="row" style="margin:6px 0"><b>'+esc(s.name)+'</b><a class="olink" href="'+esc(s.url)+'" target="_blank" rel="noopener" style="font-size:13px;word-break:break-all">'+esc(s.url)+'</a><span style="flex:1"></span>'+modeSel(i,s.mode)+'<button class="btn sec sm" data-rs="'+i+'" title="Quitar">×</button></div>').join(""):'<div class="muted" style="font-size:13px">Ninguna todavía.</div>')
+  +'<div class="row" style="margin-top:8px"><input id="seName" placeholder="Nombre (ej. Ubisoft Carreras)" style="max-width:240px"><input id="seUrl" placeholder="https://…" style="max-width:320px"><select id="seMode" style="width:auto"><option value="todas">Todas las que encajen</option><option value="mejores">Solo las que más encajen</option></select><button class="btn sec sm" id="seAdd">Añadir página</button></div>'
+  +(missing.length?'<div class="muted" style="font-size:13px;margin-top:8px">Sugerencias: '+missing.map(s=>'<button type="button" class="chip" data-sg="'+SUGG.indexOf(s)+'">+ '+esc(s[0])+'</button>').join(" ")+'</div>':"")
+  +'<div class="grid3" style="margin-top:6px"><div><label>En las páginas de «solo las que más encajen», ¿cuántas?</label><select id="seTop">'+[3,5,10].map(n=>'<option value="'+n+'" '+(g.topN===n?"selected":"")+'>'+n+'</option>').join("")+'</select></div></div>'
+  +'<label>Indicación extra para esta búsqueda (opcional)</label><textarea id="seExtra" style="min-height:60px" placeholder="Ej. esta vez solo prácticas o solo ofertas remotas"></textarea>'
+  +'<label>Prompt listo para copiar</label><textarea id="sePrompt" readonly style="min-height:280px;font-size:13px"></textarea>'
+  +'<div class="row" style="margin-top:10px"><button class="btn" id="seCopy">Copiar prompt</button><button class="btn sec" id="seSave">Guardar páginas</button><span class="muted" style="font-size:13px">El prompt usa tu perfil y la lista de empresas a las que ya te has presentado.</span></div>';
 }
-function renderAgentCfg(){
-  const c=$("agentCfg");if(!c)return;
-  c.innerHTML=agentCfgHtml();
-  const g=S.agent,redo=()=>{readAgentCfg();renderAgentCfg()};
-  c.querySelectorAll("[data-tg]").forEach(b=>b.onclick=()=>{
-    readAgentCfg();const k=b.dataset.tg,v=b.dataset.v,i=g[k].indexOf(v);
-    if(i>=0)g[k].splice(i,1);else g[k].push(v);
-    renderAgentCfg();
-  });
-  c.querySelectorAll("[data-ak]").forEach(b=>b.onclick=()=>{readAgentCfg();g[b.dataset.ak].splice(+b.dataset.i,1);renderAgentCfg()});
-  c.querySelectorAll("[data-addl]").forEach(b=>b.onclick=()=>{
-    readAgentCfg();const k=b.dataset.addl,v=$("agIn_"+k).value.trim();
-    if(v&&!g[k].includes(v))g[k].push(v);
-    renderAgentCfg();
-  });
-  c.querySelectorAll("[data-rs]").forEach(b=>b.onclick=()=>{readAgentCfg();g.sources.splice(+b.dataset.rs,1);renderAgentCfg()});
-  c.querySelectorAll("[data-sg]").forEach(b=>b.onclick=()=>{readAgentCfg();const s=SUGG[+b.dataset.sg];g.sources.push({name:s[0],url:s[1]});renderAgentCfg()});
-  $("agSrcAdd").onclick=()=>{
-    readAgentCfg();
-    let u=$("agSrcUrl").value.trim(),n=$("agSrcName").value.trim();
+function renderSearchCard(){
+  const c=$("searchCard");if(!c)return;
+  const g=S.search;
+  c.innerHTML=searchHtml();
+  $("seExtra").value=g.extra||"";
+  const refresh=()=>{$("sePrompt").value=buildPrompt()};
+  refresh();
+  c.querySelectorAll("[data-sm]").forEach(s=>s.onchange=()=>{g.sources[+s.dataset.sm].mode=s.value;refresh()});
+  c.querySelectorAll("[data-rs]").forEach(b=>b.onclick=()=>{g.sources.splice(+b.dataset.rs,1);renderSearchCard()});
+  c.querySelectorAll("[data-sg]").forEach(b=>b.onclick=()=>{const s=SUGG[+b.dataset.sg];g.sources.push({name:s[0],url:s[1],mode:s[2]});renderSearchCard()});
+  $("seAdd").onclick=()=>{
+    let u=$("seUrl").value.trim(),n=$("seName").value.trim();
     if(!u){toast("Falta la dirección de la página");return}
     if(!/^https?:\/\//i.test(u))u="https://"+u;
     if(!n){try{n=new URL(u).hostname.replace(/^www\./,"")}catch(e){n=u}}
-    if(!g.sources.some(s=>s.url===u))g.sources.push({name:n,url:u});
-    renderAgentCfg();
+    if(!g.sources.some(s=>s.url===u))g.sources.push({name:n,url:u,mode:$("seMode").value});
+    renderSearchCard();
   };
-  $("agSave").onclick=()=>{readAgentCfg();save();toast("Ajustes guardados")};
+  $("seTop").onchange=e=>{g.topN=parseInt(e.target.value,10)||5;refresh()};
+  $("seExtra").addEventListener("input",e=>{g.extra=e.target.value;refresh()});
+  $("seSave").onclick=()=>{save();toast("Páginas guardadas")};
+  $("seCopy").onclick=async()=>{
+    const ta=$("sePrompt"),txt=buildPrompt();
+    try{await navigator.clipboard.writeText(txt);toast("Prompt copiado")}
+    catch(e){ta.focus();ta.select();try{document.execCommand("copy");toast("Prompt copiado")}catch(e2){toast("Selecciona el texto y copia con Ctrl+C")}}
+  };
 }
 
 function getSample(){
@@ -811,7 +740,7 @@ function renderRadar(){
     <span class="muted">Ofertas que has guardado antes de candidatarte, ordenadas por apartados. Pega el texto de una oferta y el agente calcula el encaje, qué ajustar y un mensaje de propuesta.</span></div>
     <div class="row"><button class="btn sec" id="impOffers">Importar ofertas</button><button class="btn" id="newOffer">+ Añadir oferta</button></div>
   </div>
-  <div class="note" style="margin-bottom:18px">La búsqueda automática diaria todavía no está en marcha. Sus ajustes (hora, páginas a comprobar…) están en Agente IA; mientras tanto, añade aquí las ofertas que encuentres.</div>`+
+  <div class="note" style="margin-bottom:18px">Para buscar ofertas nuevas: en Agente IA genera el prompt con tus páginas, pégalo en un chat de Claude y trae aquí el resultado con Importar ofertas.</div>`+
   RGROUPS.map(g=>{
     const list=groups[g[0]];
     if(g[0]==="otros"&&!list.length)return "";
@@ -1039,13 +968,12 @@ function renderAgent(){
       <div class="row" style="margin-top:8px"><input id="ruleIn" placeholder="Añadir regla a mano"><button class="btn sec sm" id="ruleAdd">Añadir</button></div>
     </div>
   </div>
-  <div class="card" id="agentCfg" style="margin-top:16px"></div>
-  <div class="card" id="storageCard" style="margin-top:16px"></div>
+  <div class="card" id="searchCard" style="margin-top:16px"></div>
   <div class="card" id="ghCard" style="margin-top:16px"></div>`;
   if(window.innerWidth<800)$("agentGrid").style.gridTemplateColumns="1fr";
   const box=$("chatBox");box.scrollTop=box.scrollHeight;
-  renderAgentCfg();
-  renderStorageCard();
+  renderSearchCard();
+  renderGhCard();
   $("chatSend").onclick=sendChat;
   $("chatIn").addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});
   $("t-agent").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{S.rules.splice(+b.dataset.rm,1);save();renderAgent()});
@@ -1067,7 +995,7 @@ async function sendChat(){
     while(turns.length&&turns[0].role!=="user")turns.shift();
     const c=counts();
     const instruction=`[Instrucciones para ti: eres el agente de búsqueda de empleo de un artista 3D de videojuegos, dentro de su panel personal. No puedes navegar por internet desde aquí. Puedes explicar cómo trabajas, aconsejar sobre candidaturas y cambiar tu comportamiento si el usuario lo pide. Responde en español, breve y útil.
-PERFIL:\n${profileText()}\n${rulesText()}\nAJUSTES DE BÚSQUEDA DIARIA: ${agentText()}\nRESUMEN: ${c.sent} candidaturas enviadas, ${c.resp} respondidas, ${c.wait} sin contestar, ${c.rej} rechazadas.
+PERFIL:\n${profileText()}\n${rulesText()}\nPÁGINAS DE BÚSQUEDA: ${agentText()}\nRESUMEN: ${c.sent} candidaturas enviadas, ${c.resp} respondidas, ${c.wait} sin contestar, ${c.rej} rechazadas.
 Responde SOLO con JSON: {"reply":"tu respuesta","new_rules":["regla nueva si el usuario ha pedido un cambio estable de comportamiento; si no, lista vacía"]}]\n\n`;
     turns[0]={role:"user",content:instruction+turns[0].content};
     const r=await sample.json(turns,{modelTier:"default",cache:false});
