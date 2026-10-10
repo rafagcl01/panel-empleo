@@ -809,7 +809,7 @@ function renderRadar(){
   <div class="row" style="justify-content:space-between;margin-bottom:10px">
     <div><h2 style="margin:0 0 4px;font-size:20px">Radar de ofertas</h2>
     <span class="muted">Ofertas que has guardado antes de candidatarte, ordenadas por apartados. Pega el texto de una oferta y el agente calcula el encaje, qué ajustar y un mensaje de propuesta.</span></div>
-    <button class="btn" id="newOffer">+ Añadir oferta</button>
+    <div class="row"><button class="btn sec" id="impOffers">Importar ofertas</button><button class="btn" id="newOffer">+ Añadir oferta</button></div>
   </div>
   <div class="note" style="margin-bottom:18px">La búsqueda automática diaria todavía no está en marcha. Sus ajustes (hora, páginas a comprobar…) están en Agente IA; mientras tanto, añade aquí las ofertas que encuentres.</div>`+
   RGROUPS.map(g=>{
@@ -821,8 +821,50 @@ function renderRadar(){
     </section>`;
   }).join("");
   $("newOffer").onclick=()=>openApp(null,true);
+  $("impOffers").onclick=openImport;
   $("t-radar").querySelectorAll(".sechead").forEach(b=>b.onclick=()=>{const s=b.parentElement;s.classList.toggle("closed");uiSet(b.dataset.sec,s.classList.contains("closed"))});
   RGROUPS.forEach(g=>{const el=$("rg-"+g[0]);if(el)wireRows(el,true)});
+}
+
+/* ===== Importar ofertas (sin borrar lo existente) ===== */
+function importOffers(text){
+  const t=text.trim().replace(/^```(?:json)?\s*/i,"").replace(/\s*```$/,"");
+  let data=JSON.parse(t);
+  if(!Array.isArray(data))data=data.ofertas||data.offers||[];
+  const keyU=u=>String(u||"").trim().toLowerCase().replace(/^https?:\/\/(www\.)?/,"").replace(/[?#].*$/,"").replace(/\/+$/,"");
+  const keyR=a=>norm(a.company)+"|"+norm(a.role)+"|"+norm(a.country);
+  let added=0,dup=0,bad=0;
+  data.forEach(o=>{
+    if(!o||(!o.company&&!o.role)){bad++;return}
+    const a={id:uid(),company:String(o.company||"").trim(),role:String(o.role||"").trim(),city:String(o.city||"").trim(),country:String(o.country||"").trim(),
+      modality:MODS.includes(o.modality)?o.modality:"",date:/^\d{4}-\d{2}-\d{2}$/.test(o.date||"")?o.date:todayISO(),
+      fit:["poco","medio","probable"].includes(o.fit)?o.fit:"",stage:"Preparando",url:String(o.url||"").trim(),email:"",notes:String(o.notes||""),desc:"",
+      match:null,analysis:null,radar:true,kind:["practicas","no"].includes(o.kind)?o.kind:"",events:[{d:todayISO(),t:"Importada de una búsqueda con Claude"}]};
+    const dupe=S.apps.some(x=>(a.url&&x.url&&keyU(a.url)===keyU(x.url))||keyR(x)===keyR(a));
+    if(dupe){dup++;return}
+    S.apps.push(a);added++;
+  });
+  return{added:added,dup:dup,bad:bad};
+}
+function openImport(){
+  $("modalRoot").innerHTML=`<div class="modal"><div class="card">
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0;font-size:18px">Importar ofertas</h2><button class="btn sec sm" id="impX">Cerrar</button></div>
+    <p class="muted" style="margin-top:6px">Pega aquí las ofertas que te haya preparado Claude (formato JSON) o elige el archivo. Se añaden al radar sin borrar nada, y se omiten las que ya tengas.</p>
+    <textarea id="impText" style="min-height:200px" placeholder='[{"company":"…","role":"…","url":"…","country":"…","city":"…","modality":"Remoto","fit":"medio","kind":"practicas","notes":"…"}]'></textarea>
+    <div class="row" style="margin-top:10px"><input type="file" id="impFile" accept=".json,application/json" style="max-width:320px"><button class="btn" id="impGo">Importar</button></div>
+    <div id="impOut" style="margin-top:12px"></div>
+  </div></div>`;
+  $("impX").onclick=closeModal;
+  $("impFile").onchange=async e=>{const f=e.target.files[0];if(f)$("impText").value=await f.text()};
+  $("impGo").onclick=()=>{
+    const txt=$("impText").value;
+    if(!txt.trim()){toast("Pega las ofertas o elige un archivo");return}
+    try{
+      const r=importOffers(txt);
+      if(r.added){save();render()}
+      $("impOut").innerHTML='<div class="note">'+r.added+' oferta'+(r.added===1?"":"s")+' añadida'+(r.added===1?"":"s")+' al radar'+(r.dup?' · '+r.dup+' omitida'+(r.dup===1?"":"s")+' por estar ya en tu panel':"")+(r.bad?' · '+r.bad+' sin datos suficientes':"")+'.'+(r.added?' Pulsa Guardar si ves un aviso de guardado pendiente.':'')+'</div>';
+    }catch(e){$("impOut").innerHTML='<div class="note">No he podido leer el formato. Asegúrate de pegar el contenido completo tal como te lo di.</div>'}
+  };
 }
 
 /* ===== Ficha / edición ===== */
