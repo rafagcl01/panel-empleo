@@ -99,7 +99,7 @@ pre.draft{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line)
 .sec.closed .caret{transform:rotate(-90deg)}
 .sec.closed .secbody{display:none}
 
-.rrow,.rhead{grid-template-columns:minmax(0,2.2fr) 130px minmax(0,1fr) minmax(0,1fr) 110px 100px 170px}
+.rrow,.rhead{grid-template-columns:minmax(0,2.2fr) 130px minmax(0,1fr) minmax(0,1fr) 110px 100px 215px}
 .ritem a.olink,a.olink{font-size:14px;color:var(--accent);text-decoration:none}
 a.olink:hover{text-decoration:underline}
 @media(max-width:980px){.rrow{grid-template-columns:1fr 1fr}.rrow .c-main{grid-column:1/-1}}
@@ -120,7 +120,7 @@ function ss(k,v){try{if(v===undefined)return sessionStorage.getItem(k);sessionSt
 /* Los datos viven dentro del propio archivo (bloque #data) */
 let S=JSON.parse($("data").textContent);
 function migrateSearch(){
-  const old=S.agent,base={sources:[],topN:5,extra:""};
+  const old=S.agent,base={sources:[],topN:5,extra:"",since:""};
   if(!S.search){
     S.search=base;
     if(old&&Array.isArray(old.sources))S.search.sources=old.sources.map(s=>({name:s.name,url:s.url,mode:"todas"}));
@@ -129,7 +129,7 @@ function migrateSearch(){
   S.search.sources.forEach(s=>{if(s.mode!=="mejores")s.mode="todas"});
   delete S.agent;
 }
-function normalize(){S.profile.langs=S.profile.langs||[];S.rev=S.rev||0;migrateSearch();S.apps.forEach(a=>{if(a.country===undefined)a.country=""})}
+function normalize(){S.profile.langs=S.profile.langs||[];S.rev=S.rev||0;migrateSearch();S.discarded=Array.isArray(S.discarded)?S.discarded:[];S.apps.forEach(a=>{if(a.country===undefined)a.country=""})}
 normalize();
 let chat=[];try{chat=JSON.parse(ss("chat")||"[]")}catch(e){}
 let filt=Object.assign({q:"",st:"all",mod:"all",fit:"all",country:"all",city:"all"},(()=>{try{return JSON.parse(ss("filt")||"{}")}catch(e){return{}}})());
@@ -200,7 +200,7 @@ async function loadDb(){
   }catch(e){}
 }
 window.addEventListener("beforeunload",e=>{if(pending){e.preventDefault();e.returnValue=""}});
-function toast(t){const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2200)}
+function toast(t){document.querySelectorAll(".toast").forEach(x=>x.remove());const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2200)}
 function dlBlob(name,text){
   const a=document.createElement("a");
   a.href=URL.createObjectURL(new Blob([text],{type:"application/json"}));
@@ -432,6 +432,9 @@ function buildPrompt(){
   L.push("- Pon el enlace directo a la oferta. Si solo encuentras un agregador, pon ese enlace y avísame en las notas.");
   L.push("- Si una página no se deja leer (por ejemplo, bloquea el acceso o pide iniciar sesión), dímelo en vez de rellenar con otras cosas.");
   L.push("- Si no sabes el país, la ciudad o la modalidad, déjalo vacío y dímelo en las notas. No lo adivines.");
+  if(g.since){
+    L.push("- Solo me interesan las ofertas publicadas (o republicadas) desde el "+fmt(g.since)+" (fecha de mi última búsqueda, con un día de margen). Descarta las anteriores. Si una oferta no muestra fecha de publicación, inclúyela solo si encaja muy bien y anota \"sin fecha visible\" en las notas.");
+  }
   L.push("");
   L.push("## CLASIFICACIÓN EN TRES APARTADOS");
   L.push("1. Prácticas: prácticas, becas, internships, trainee o apprenticeship, estén donde estén.");
@@ -451,7 +454,7 @@ function buildPrompt(){
   if(names.length){
     L.push("");
     L.push("## EMPRESAS A LAS QUE YA ME HE PRESENTADO");
-    L.push("Avísame en las notas si una oferta es de una de ellas, pero no la excluyas si el puesto es distinto.");
+    L.push("Avísame en las notas si una oferta es de una de ellas. No excluyas ninguna por eso, ni siquiera si el puesto parece el mismo: puede ser una oferta nueva, y mi panel detecta las repeticiones al importar.");
     L.push(names.join("; "));
   }
   if(g.extra&&g.extra.trim()){
@@ -471,7 +474,7 @@ function searchHtml(){
   +(g.sources.length?g.sources.map((s,i)=>'<div class="row" style="margin:6px 0"><b>'+esc(s.name)+'</b><a class="olink" href="'+esc(s.url)+'" target="_blank" rel="noopener" style="font-size:13px;word-break:break-all">'+esc(s.url)+'</a><span style="flex:1"></span>'+modeSel(i,s.mode)+'<button class="btn sec sm" data-rs="'+i+'" title="Quitar">×</button></div>').join(""):'<div class="muted" style="font-size:13px">Ninguna todavía.</div>')
   +'<div class="row" style="margin-top:8px"><input id="seName" placeholder="Nombre (ej. Ubisoft Carreras)" style="max-width:240px"><input id="seUrl" placeholder="https://…" style="max-width:320px"><select id="seMode" style="width:auto"><option value="todas">Todas las que encajen</option><option value="mejores">Solo las que más encajen</option></select><button class="btn sec sm" id="seAdd">Añadir página</button></div>'
   +(missing.length?'<div class="muted" style="font-size:13px;margin-top:8px">Sugerencias: '+missing.map(s=>'<button type="button" class="chip" data-sg="'+SUGG.indexOf(s)+'">+ '+esc(s[0])+'</button>').join(" ")+'</div>':"")
-  +'<div class="grid3" style="margin-top:6px"><div><label>En las páginas de «solo las que más encajen», ¿cuántas?</label><select id="seTop">'+[3,5,10].map(n=>'<option value="'+n+'" '+(g.topN===n?"selected":"")+'>'+n+'</option>').join("")+'</select></div></div>'
+  +'<div class="grid3" style="margin-top:6px"><div><label>En las páginas de «solo las que más encajen», ¿cuántas?</label><select id="seTop">'+[3,5,10].map(n=>'<option value="'+n+'" '+(g.topN===n?"selected":"")+'>'+n+'</option>').join("")+'</select></div><div><label>Solo ofertas publicadas desde (opcional)</label><input type="date" id="seSince" value="'+esc(g.since||"")+'"><div class="muted" style="font-size:12px;margin-top:4px">Se rellena sola al importar ofertas (con un día de margen). Déjalo vacío para no limitar por fecha.</div></div></div>'
   +'<label>Indicación extra para esta búsqueda (opcional)</label><textarea id="seExtra" style="min-height:60px" placeholder="Ej. esta vez solo prácticas o solo ofertas remotas"></textarea>'
   +'<label>Prompt listo para copiar</label><textarea id="sePrompt" readonly style="min-height:280px;font-size:13px"></textarea>'
   +'<div class="row" style="margin-top:10px"><button class="btn" id="seCopy">Copiar prompt</button><button class="btn sec" id="seSave">Guardar páginas</button><span class="muted" style="font-size:13px">El prompt usa tu perfil y la lista de empresas a las que ya te has presentado.</span></div>';
@@ -494,6 +497,7 @@ function renderSearchCard(){
     if(!g.sources.some(s=>s.url===u))g.sources.push({name:n,url:u,mode:$("seMode").value});
     renderSearchCard();
   };
+  $("seSince").addEventListener("input",e=>{g.since=e.target.value;refresh()});
   $("seTop").onchange=e=>{g.topN=parseInt(e.target.value,10)||5;refresh()};
   $("seExtra").addEventListener("input",e=>{g.extra=e.target.value;refresh()});
   $("seSave").onclick=()=>{save();toast("Páginas guardadas")};
@@ -507,6 +511,14 @@ function renderSearchCard(){
 function getSample(){
   if(!HAS_CL)return Promise.reject({code:"no_runtime"});
   return claude.use("sample");
+}
+
+function toastUndo(msg,undo){
+  document.querySelectorAll(".toast").forEach(x=>x.remove());
+  const d=document.createElement("div");d.className="toast";
+  d.innerHTML=esc(msg)+' <button class="btn sm" style="margin-left:10px;padding:2px 10px">Deshacer</button>';
+  d.querySelector("button").onclick=()=>{undo();d.remove()};
+  document.body.appendChild(d);setTimeout(()=>d.remove(),7000);
 }
 
 /* ===== Utilidades de dominio ===== */
@@ -688,11 +700,10 @@ function wireRows(root,radar){
       a.stage=sel.value;a.events.push({d:todayISO(),t:"Estado → "+a.stage});
       save();renderBoard();
     });
-    const tb=r.querySelector('[data-act="toboard"]');
-    if(tb)tb.addEventListener("click",()=>{
-      a.radar=false;a.stage="Preparando";a.events.push({d:todayISO(),t:"Pasada a candidaturas"});
-      save();render();toast("Pasada a candidaturas");
-    });
+    const ap=r.querySelector('[data-act="applied"]');
+    if(ap)ap.addEventListener("click",()=>{markApplied(a);save();render();toast("Pasada a Candidaturas como enviada")});
+    const dl=r.querySelector('[data-act="del"]');
+    if(dl)dl.addEventListener("click",()=>removeOffer(a));
   });
 }
 function renderRows(){
@@ -727,7 +738,7 @@ function radarRow(a){
     <div class="c-city">${esc(a.city||"—")}</div>
     <div class="c-mod">${modPill(a.modality)}</div>
     <div class="c-fit">${fitPill(a.fit)}</div>
-    <div class="c-stage"><button class="btn sec sm" data-act="toboard">Pasar a candidaturas</button></div>
+    <div class="c-stage"><button class="btn sm" data-act="applied">Aplicada</button> <button class="btn sec sm" data-act="del" style="color:var(--bad)">Eliminar</button></div>
   </div>`;
 }
 function renderRadar(){
@@ -740,7 +751,7 @@ function renderRadar(){
     <span class="muted">Ofertas que has guardado antes de candidatarte, ordenadas por apartados. Pega el texto de una oferta y el agente calcula el encaje, qué ajustar y un mensaje de propuesta.</span></div>
     <div class="row"><button class="btn sec" id="impOffers">Importar ofertas</button><button class="btn" id="newOffer">+ Añadir oferta</button></div>
   </div>
-  <div class="note" style="margin-bottom:18px">Para buscar ofertas nuevas: en Agente IA genera el prompt con tus páginas, pégalo en un chat de Claude y trae aquí el resultado con Importar ofertas.</div>`+
+  <div class="note" style="margin-bottom:18px">Para buscar ofertas nuevas: en Agente IA genera el prompt con tus páginas, pégalo en un chat de Claude y trae aquí el resultado con Importar ofertas. Después, marca cada oferta como Aplicada (pasa a Candidaturas) o Eliminar.</div>`+
   RGROUPS.map(g=>{
     const list=groups[g[0]];
     if(g[0]==="otros"&&!list.length)return "";
@@ -755,25 +766,56 @@ function renderRadar(){
   RGROUPS.forEach(g=>{const el=$("rg-"+g[0]);if(el)wireRows(el,true)});
 }
 
+/* ===== Acciones del radar: aplicada / eliminar ===== */
+const okU=u=>String(u||"").trim().toLowerCase().replace(/^https?:\/\/(www\.)?/,"").replace(/[?#].*$/,"").replace(/\/+$/,"");
+const okR=a=>norm(a.company)+"|"+norm(a.role)+"|"+norm(a.country);
+function markApplied(a){
+  a.radar=false;a.stage="Sin respuesta";a.date=todayISO();
+  a.events.push({d:todayISO(),t:"Candidatura enviada (pasada desde el radar)"});
+}
+function rememberDiscard(a){
+  const e={u:okU(a.url),k:okR(a)};
+  S.discarded.push(e);
+  if(S.discarded.length>1000)S.discarded.splice(0,S.discarded.length-1000);
+  return e;
+}
+function removeOffer(a){
+  const idx=S.apps.indexOf(a);if(idx<0)return;
+  S.apps.splice(idx,1);
+  const e=rememberDiscard(a);
+  save();render();
+  toastUndo("Oferta eliminada",()=>{
+    S.apps.splice(Math.min(idx,S.apps.length),0,a);
+    const j=S.discarded.indexOf(e);if(j>=0)S.discarded.splice(j,1);
+    save();render();
+  });
+}
+
 /* ===== Importar ofertas (sin borrar lo existente) ===== */
 function importOffers(text){
   const t=text.trim().replace(/^```(?:json)?\s*/i,"").replace(/\s*```$/,"");
   let data=JSON.parse(t);
   if(!Array.isArray(data))data=data.ofertas||data.offers||[];
-  const keyU=u=>String(u||"").trim().toLowerCase().replace(/^https?:\/\/(www\.)?/,"").replace(/[?#].*$/,"").replace(/\/+$/,"");
-  const keyR=a=>norm(a.company)+"|"+norm(a.role)+"|"+norm(a.country);
-  let added=0,dup=0,bad=0;
+  const keyU=okU,keyR=okR;
+  let added=0,dup=0,bad=0,again=0,skipped=0;
   data.forEach(o=>{
     if(!o||(!o.company&&!o.role)){bad++;return}
     const a={id:uid(),company:String(o.company||"").trim(),role:String(o.role||"").trim(),city:String(o.city||"").trim(),country:String(o.country||"").trim(),
       modality:MODS.includes(o.modality)?o.modality:"",date:/^\d{4}-\d{2}-\d{2}$/.test(o.date||"")?o.date:todayISO(),
       fit:["poco","medio","probable"].includes(o.fit)?o.fit:"",stage:"Preparando",url:String(o.url||"").trim(),email:"",notes:String(o.notes||""),desc:"",
       match:null,analysis:null,radar:true,kind:["practicas","no"].includes(o.kind)?o.kind:"",events:[{d:todayISO(),t:"Importada de una búsqueda con Claude"}]};
-    const dupe=S.apps.some(x=>(a.url&&x.url&&keyU(a.url)===keyU(x.url))||keyR(x)===keyR(a));
-    if(dupe){dup++;return}
+    if(S.discarded.some(d=>(a.url&&d.u&&d.u===keyU(a.url))||d.k===keyR(a))){skipped++;return}
+    if(S.apps.some(x=>a.url&&x.url&&keyU(a.url)===keyU(x.url))){dup++;return}
+    const same=S.apps.filter(x=>keyR(x)===keyR(a));
+    if(same.some(x=>x.radar)){dup++;return}
+    if(same.length){
+      const x=same.slice().sort((p,q)=>(q.date||"").localeCompare(p.date||""))[0];
+      a.notes=("Posible repetición: ya te presentaste a «"+(x.role||"este puesto")+"» en "+x.company+" (estado: "+x.stage+(x.date?", "+fmt(x.date):"")+"). "+a.notes).trim();
+      again++;
+    }
     S.apps.push(a);added++;
   });
-  return{added:added,dup:dup,bad:bad};
+  return{added:added,dup:dup,bad:bad,again:again,skipped:skipped};
 }
 function openImport(){
   $("modalRoot").innerHTML=`<div class="modal"><div class="card">
@@ -790,8 +832,8 @@ function openImport(){
     if(!txt.trim()){toast("Pega las ofertas o elige un archivo");return}
     try{
       const r=importOffers(txt);
-      if(r.added){save();render()}
-      $("impOut").innerHTML='<div class="note">'+r.added+' oferta'+(r.added===1?"":"s")+' añadida'+(r.added===1?"":"s")+' al radar'+(r.dup?' · '+r.dup+' omitida'+(r.dup===1?"":"s")+' por estar ya en tu panel':"")+(r.bad?' · '+r.bad+' sin datos suficientes':"")+'.'+(r.added?' Pulsa Guardar si ves un aviso de guardado pendiente.':'')+'</div>';
+      if(r.added||r.dup||r.skipped){S.search.since=new Date(Date.now()-864e5).toISOString().slice(0,10);save();render()}
+      $("impOut").innerHTML='<div class="note">'+r.added+' oferta'+(r.added===1?"":"s")+' añadida'+(r.added===1?"":"s")+' al radar'+(r.dup?' · '+r.dup+' omitida'+(r.dup===1?"":"s")+' por ser la misma oferta que ya tienes':"")+(r.skipped?' · '+r.skipped+' omitida'+(r.skipped===1?"":"s")+' por haberlas eliminado antes':"")+(r.again?' · '+r.again+' parece'+(r.again===1?"":"n")+' una repetición de una candidatura anterior (míralo en las notas)':"")+(r.bad?' · '+r.bad+' sin datos suficientes':"")+'.'+((r.added||r.dup||r.skipped)?' Próxima búsqueda: ofertas publicadas desde el '+fmt(S.search.since)+'.':'')+'</div>';
     }catch(e){$("impOut").innerHTML='<div class="note">No he podido leer el formato. Asegúrate de pegar el contenido completo tal como te lo di.</div>'}
   };
 }
@@ -837,7 +879,7 @@ function openApp(id,radar){
       <div class="row" style="margin-top:12px">
         <button class="btn" id="analyze">Analizar con IA</button>
         <button class="btn sec" id="save">Guardar</button>
-        ${d.radar?'<button class="btn sec" id="toBoard">Pasar a candidaturas</button>':""}
+        ${d.radar?'<button class="btn sec" id="toBoard">Marcar como aplicada</button>':""}
         ${orig?'<button class="btn sec" id="del" style="margin-left:auto;color:var(--bad)">Eliminar</button>':""}
       </div>
       <div id="aiOut">${d.analysis?analysisHtml(d):""}</div>
@@ -849,9 +891,9 @@ function openApp(id,radar){
     $("x").onclick=closeModal;
     $("save").onclick=()=>{read();if(!d.company){toast("Falta la empresa");return}commit();closeModal()};
     const del=$("del");
-    if(del)del.onclick=()=>{if(confirm("¿Eliminar esta entrada?")){S.apps=S.apps.filter(x=>x!==orig);save();render();closeModal()}};
+    if(del)del.onclick=()=>{if(confirm("¿Eliminar esta entrada?")){if(orig.radar)rememberDiscard(orig);S.apps=S.apps.filter(x=>x!==orig);save();render();closeModal()}};
     const tb=$("toBoard");
-    if(tb)tb.onclick=()=>{read();if(!d.company){toast("Falta la empresa");return}d.radar=false;d.stage="Preparando";d.events.push({d:todayISO(),t:"Pasada a candidaturas"});commit();closeModal()};
+    if(tb)tb.onclick=()=>{read();if(!d.company){toast("Falta la empresa");return}markApplied(d);commit();closeModal();toast("Pasada a Candidaturas como enviada")};
     const cp=$("copyMsg");
     if(cp)cp.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(d.analysis.message).then(()=>toast("Mensaje copiado")).catch(()=>toast("No se pudo copiar"))};
     $("analyze").onclick=analyze;
