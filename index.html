@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Panel de búsqueda de empleo</title><style id="css">:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#f6f5f2;--panel:#ffffff;--ink:#1d1d1f;--muted:#6b6b72;--line:#e3e1db;
+  --accent:#4f46e5;--accent-ink:#ffffff;--soft:#eeedfc;--ok:#15803d;--warn:#b45309;--bad:#b91c1c;--blue:#2563eb;--teal:#0f766e;--purple:#7c3aed;--pink:#db2777;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#141417;--panel:#1d1d22;--ink:#ececf0;--muted:#9a9aa4;--line:#2d2d34;--accent:#8b85ff;--accent-ink:#14141a;--soft:#262540;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--blue:#60a5fa;--teal:#2dd4bf;--purple:#a78bfa;--pink:#f472b6}
+}
+:root[data-theme="dark"]{--bg:#141417;--panel:#1d1d22;--ink:#ececf0;--muted:#9a9aa4;--line:#2d2d34;--accent:#8b85ff;--accent-ink:#14141a;--soft:#262540;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--blue:#60a5fa;--teal:#2dd4bf;--purple:#a78bfa;--pink:#f472b6}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:14px 24px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+header h1{font-size:17px;margin:0;font-weight:650}
+nav{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+nav button{background:none;border:0;color:var(--muted);padding:8px 12px;border-radius:8px;cursor:pointer;font:inherit}
+nav button.on{background:var(--soft);color:var(--accent);font-weight:600}
+main{padding:24px;width:100%;max-width:1600px;margin:0 auto}
+button,input,select,textarea{font:inherit;color:inherit}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600}
+.btn.sec{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.sm{padding:4px 9px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:default}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:90px}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:700px){.grid2,.grid3{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.muted{color:var(--muted)}
+.hidden{display:none!important}
+.hello{font-size:26px;margin:0 0 2px;font-weight:650}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0 22px}
+@media(max-width:800px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.stat b{display:block;font-size:34px;line-height:1.1}
+.stat span{color:var(--muted);font-size:14px}
+.stat small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.toolbar .search{flex:1 1 220px;max-width:360px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:5px 12px;cursor:pointer;font-size:13px;color:var(--muted)}
+.chip.on{background:var(--soft);color:var(--accent);border-color:var(--accent);font-weight:600}
+.lhead,.ritem{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1.1fr) minmax(0,1.1fr) 110px 100px 110px 170px 40px;gap:14px;align-items:center;padding:10px 16px}
+.lhead{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding-top:0}
+.ritem{background:var(--panel);border:1px solid var(--line);border-radius:10px;margin-bottom:6px;cursor:pointer}
+.ritem:hover{border-color:var(--accent)}
+.ritem .c-main b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ritem .c-main span{display:block;color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ritem .c-city{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ritem select{padding:5px 8px}
+.ritem a{text-decoration:none;font-size:18px;color:var(--accent)}
+@media(max-width:980px){
+  .lhead{display:none}
+  .ritem{grid-template-columns:1fr 1fr;gap:8px 12px}
+  .ritem .c-main{grid-column:1/-1}
+}
+.pill{display:inline-block;font-size:12px;padding:2px 9px;border-radius:99px;background:var(--soft);color:var(--accent);font-weight:600;white-space:nowrap}
+.pill.ok,.stsel.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.pill.warn,.stsel.warn{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+.pill.bad,.stsel.bad{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
+.pill.info,.stsel.info{background:color-mix(in srgb,var(--blue) 16%,transparent);color:var(--blue)}
+.pill.m-remoto{background:color-mix(in srgb,var(--teal) 16%,transparent);color:var(--teal)}
+.pill.m-hibrido{background:color-mix(in srgb,var(--purple) 16%,transparent);color:var(--purple)}
+.pill.m-presencial{background:color-mix(in srgb,var(--pink) 16%,transparent);color:var(--pink)}
+.pill.neutral{color:var(--muted);font-weight:500}
+.stsel{font-weight:600;border-color:transparent;cursor:pointer}
+.stsel option{background:var(--panel);color:var(--ink);font-weight:400}
+.stat.click{cursor:pointer}.stat.click:hover{border-color:var(--accent)}
+.toolbar select.filt{width:auto;max-width:210px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;justify-content:center;align-items:flex-start;padding:calc(20px + env(safe-area-inset-top,0px)) 14px 20px;overflow-y:auto;z-index:20}
+.modal .card{max-width:820px;width:100%}
+.meter{height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent)}
+.tag{display:inline-flex;align-items:center;gap:4px;background:var(--soft);color:var(--accent);border-radius:99px;padding:3px 10px;margin:3px 4px 3px 0;font-size:13px}
+.tag button{background:none;border:0;cursor:pointer;color:inherit;padding:0}
+ul.clean{margin:6px 0;padding-left:18px}
+.chat{display:flex;flex-direction:column;gap:10px;max-height:52vh;overflow-y:auto;padding:4px}
+.msg{padding:10px 12px;border-radius:12px;max-width:85%;white-space:pre-wrap}
+.msg.u{align-self:flex-end;background:var(--accent);color:var(--accent-ink)}
+.msg.a{align-self:flex-start;background:var(--soft)}
+.note{font-size:13px;color:var(--muted);background:var(--soft);border-radius:10px;padding:10px 12px}
+pre.draft{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;font-family:inherit;margin:6px 0}
+.sect{margin:0 0 6px;font-size:14px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:99px;z-index:40;font-size:14px}
+
+.linkbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 24px;background:var(--soft);font-size:13px;border-bottom:1px solid var(--line)}
+
+
+.sec{margin:0 0 26px}
+.sechead{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;padding:6px 2px;margin-bottom:8px;cursor:pointer;font-size:17px;font-weight:650;color:var(--ink);text-align:left}
+.caret{display:inline-block;transition:transform .15s;color:var(--muted);font-size:14px}
+.sec.closed .caret{transform:rotate(-90deg)}
+.sec.closed .secbody{display:none}
+</style></head><body><div id="root"></div><script id="data" type="application/json">{"v": 3, "rev": 1, "profile": {"name": "", "nick": "", "headline": "", "location": "", "modality": "Híbrido", "langs": [], "targetRoles": [], "skills": [], "education": "", "experience": "", "portfolio": "", "notes": ""}, "apps": [], "rules": []}</script><script id="app">"use strict";
+/* ===== Constantes ===== */
+const STAGES=["Preparando","Sin respuesta","Respondida","Entrevista","Prueba técnica","Oferta","Rechazada"];
+const RESP=["Respondida","Entrevista","Prueba técnica","Oferta"];
+const MODS=["Remoto","Híbrido","Presencial"];
+const FITS=[["poco","Poco"],["medio","Medio"],["probable","Probable"]];
+const $=id=>document.getElementById(id);
+const HAS_CL=typeof claude!=="undefined";
+const uid=()=>Math.random().toString(36).slice(2,10);
+const todayISO=()=>new Date().toISOString().slice(0,10);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=iso=>iso?iso.split("-").reverse().join("/"):"—";
+function ss(k,v){try{if(v===undefined)return sessionStorage.getItem(k);sessionStorage.setItem(k,v)}catch(e){return null}}
+
+/* Los datos viven dentro del propio archivo (bloque #data) */
+let S=JSON.parse($("data").textContent);
+function normalize(){S.profile.langs=S.profile.langs||[];S.rev=S.rev||0;S.apps.forEach(a=>{if(a.country===undefined)a.country=""})}
+normalize();
+let chat=[];try{chat=JSON.parse(ss("chat")||"[]")}catch(e){}
+let filt=Object.assign({q:"",st:"all",mod:"all",fit:"all",country:"all",city:"all"},(()=>{try{return JSON.parse(ss("filt")||"{}")}catch(e){return{}}})());
+function saveFilt(){ss("filt",JSON.stringify(filt))}
+let busy=false;
+
+/* ===== Guardado: se reescribe el archivo con los datos dentro ===== */
+let pubTimer=null,pending=false;
+function setSave(t,retry){
+  const e=$("saveState");if(!e)return;
+  e.textContent=t;
+  if(retry){const b=document.createElement("button");b.className="btn sec sm";b.style.marginLeft="8px";b.textContent="Reintentar";b.onclick=()=>doPublish();e.appendChild(b)}
+}
+function buildDoc(){
+  const CL="<"+"/";
+  const css=$("css").textContent, code=$("app").textContent;
+  const data=JSON.stringify(S).replace(/</g,"\\u003c");
+  return "<!DOCTYPE html>\n<html lang=\"es\"><head><meta charset=\"utf-8\">"
+   +"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">"
+   +"<title>Panel de búsqueda de empleo</title><style id=\"css\">"+css+CL+"style></head><body>"
+   +"<div id=\"root\">"+CL+"div>"
+   +"<script id=\"data\" type=\"application/json\">"+data+CL+"script>"
+   +"<script id=\"app\">"+code+CL+"script></body></html>";
+}
+async function dbRef(){
+  if(!HAS_CL)return null;
+  try{
+    const user=await claude.use("user"),db=await claude.use("db");
+    if(!user||!db)return null;
+    const id=await user.id();
+    if(!id)return null;
+    return db.collection("data/users/"+id).doc("panel");
+  }catch(e){return null}
+}
+function save(){
+  S.rev=(S.rev||0)+1;
+  pending=true;setSave("Guardando…");
+  clearTimeout(pubTimer);pubTimer=setTimeout(doPublish,200);
+}
+async function doPublish(){
+  setSave("Guardando…");
+  if(!HAS_CL){await localSave();return}
+  let dbOk=false,dbErr="";
+  try{
+    const ref=await dbRef();
+    if(ref){await ref.set({json:JSON.stringify(S)});dbOk=true}else dbErr="no disponible";
+  }catch(e){dbErr=((e&&e.code)||"error")+(e&&e.message?": "+e.message:"")}
+  let fileOk=false,fileErr="";
+  try{
+    const art=await claude.use("artifact");
+    if(!art)fileErr="sin acceso de escritura";
+    else{await art.publish(buildDoc());fileOk=true}
+  }catch(e){
+    if(e&&e.code==="conflict"){setSave("Se guardó antes desde otra ventana; recargando…");return}
+    fileErr=((e&&e.code)||"error")+(e&&e.message?": "+e.message:"");
+  }
+  if(fileOk){pending=false;setSave("Guardado en el archivo ✓")}
+  else if(dbOk){pending=false;setSave("Guardado en la base de datos del panel ✓ (el archivo no se pudo escribir: "+fileErr+")")}
+  else setSave("No se pudo guardar. Archivo: "+fileErr+(dbErr?" · Base de datos: "+dbErr:""),true);
+}
+async function loadDb(){
+  try{
+    const ref=await dbRef();if(!ref)return;
+    const snap=await ref.get();
+    if(!snap.exists)return;
+    const r=JSON.parse(snap.data().json);
+    if((r.rev||0)>(S.rev||0)){S=r;normalize();render();setSave("Cargado desde la base de datos del panel")}
+  }catch(e){}
+}
+window.addEventListener("beforeunload",e=>{if(pending){e.preventDefault();e.returnValue=""}});
+function toast(t){const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2200)}
+function dlBlob(name,text){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([text],{type:"application/json"}));
+  a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+async function exportData(){
+  if(!HAS_CL){dlBlob("panel-empleo-copia.json",JSON.stringify(S,null,2));return}
+  try{
+    const dl=await claude.use("downloads");
+    if(!dl){toast("Descarga no disponible aquí");return}
+    await dl.save({filename:"panel-empleo-copia.json",data:JSON.stringify(S,null,2)});
+  }catch(e){if(!e||e.code!=="declined")toast("No se pudo exportar")}
+}
+
+/* ===== Modo archivo local (HTML abierto desde el ordenador, sin Claude) ===== */
+const LS="panel-empleo-datos",DATA_NAME="panel-empleo-datos.json";
+let fileHandle=null,fileMode="",needPerm=false,reconnecting=false;
+const FSA=typeof window.showOpenFilePicker==="function";
+const JSON_TYPES=[{description:"Datos del panel (JSON)",accept:{"application/json":[".json"]}}];
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open("panel-empleo",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function kvGet(k){const db=await idb();return new Promise((res,rej)=>{const q=db.transaction("kv").objectStore("kv").get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}
+async function kvSet(k,v){const db=await idb();return new Promise((res,rej)=>{const q=db.transaction("kv","readwrite").objectStore("kv").put(v,k);q.onsuccess=()=>res();q.onerror=()=>rej(q.error)})}
+function dataFile(create){
+  if(fileMode==="dir")return fileHandle.getFileHandle(DATA_NAME,{create:!!create});
+  return Promise.resolve(fileHandle);
+}
+function linkName(){return fileMode==="dir"?"la carpeta «"+fileHandle.name+"» (archivo "+DATA_NAME+")":fileHandle.name}
+async function localSave(){
+  try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}
+  const ok=[],err=[];
+  if(fileHandle){
+    try{
+      if(await fileHandle.queryPermission({mode:"readwrite"})!=="granted"){
+        needPerm=true;renderLinkBar();err.push("el archivo necesita que pulses Reconectar");
+      }else{
+        const fh=await dataFile(true);
+        const w=await fh.createWritable();
+        await w.write(fileMode==="html"?buildDoc():JSON.stringify(S,null,2));
+        await w.close();
+        ok.push(fileMode==="dir"?DATA_NAME:fileHandle.name);
+      }
+    }catch(e){err.push("archivo: "+((e&&(e.message||e.name))||"error"))}
+  }
+  if(ghOn()){
+    markDirty();
+    try{await ghFlush();ok.push("GitHub")}catch(e){err.push("GitHub: "+((e&&e.message)||"error"))}
+  }
+  pending=err.length>0;
+  if(err.length)setSave("Problema al guardar: "+err.join(" · ")+(ok.length?" (sí se guardó en "+ok.join(" y ")+")":""),true);
+  else if(ok.length)setSave("Guardado en "+ok.join(" y ")+" ✓");
+  else setSave("Guardado solo en este navegador. Configura GitHub o una carpeta en Agente IA.");
+}
+async function readLinked(){
+  if(!fileHandle||fileMode==="html")return;
+  try{
+    const fh=await dataFile(false);
+    const t=await (await fh.getFile()).text();
+    if(t.trim()){const r=JSON.parse(t);if(r&&r.apps&&r.profile&&(r.rev||0)>(S.rev||0)){S=r;normalize();render()}}
+  }catch(e){}
+}
+async function reconnect(){
+  if(reconnecting||!fileHandle)return;
+  reconnecting=true;
+  try{
+    if(await fileHandle.requestPermission({mode:"readwrite"})==="granted"){
+      needPerm=false;await readLinked();render();renderLinkBar();setSave("Archivo reconectado ✓");
+    }
+  }catch(e){}
+  reconnecting=false;
+}
+async function initLocal(){
+  if(HAS_CL)return;
+  try{const r=JSON.parse(localStorage.getItem(LS)||"null");if(r&&r.apps&&(r.rev||0)>(S.rev||0)){S=r;normalize();render()}}catch(e){}
+  if(FSA){
+    try{
+      const k=await kvGet("handle");
+      if(k&&k.h){
+        fileHandle=k.h;fileMode=k.mode;
+        if(await fileHandle.queryPermission({mode:"readwrite"})==="granted")await readLinked();
+        else{needPerm=true;document.addEventListener("click",()=>{if(needPerm)reconnect()},{once:true})}
+      }
+    }catch(e){}
+  }
+  renderLinkBar();
+  if(ghOn())ghSync(false);
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&ghOn()&&!pending)ghSync(false)});
+}
+async function finishLink(h,mode){
+  const p=await h.requestPermission({mode:"readwrite"});
+  if(p!=="granted"){toast("Permiso denegado");return}
+  fileHandle=h;fileMode=mode;needPerm=false;
+  try{await kvSet("handle",{h:h,mode:mode})}catch(e){}
+  renderLinkBar();save();
+}
+async function linkDir(){
+  try{
+    const h=await showDirectoryPicker({mode:"readwrite",id:"panel-empleo"});
+    let existing=null;
+    try{existing=await h.getFileHandle(DATA_NAME)}catch(e){}
+    if(existing){
+      let d=null;
+      try{d=JSON.parse(await (await existing.getFile()).text())}catch(e){}
+      if(d&&d.apps&&d.profile&&confirm("En esa carpeta ya hay un archivo de datos del panel.\n\nAceptar: cargar sus datos (sustituyen los actuales).\nCancelar: sobrescribirlo con los datos actuales.")){S=d;normalize();render()}
+    }
+    await finishLink(h,"dir");
+  }catch(e){if(!e||e.name!=="AbortError")toast("No se pudo usar esa carpeta. Prueba con una carpeta propia, no Documentos o Escritorio directamente.")}
+}
+async function linkNewJson(){
+  try{const h=await showSaveFilePicker({suggestedName:DATA_NAME,types:JSON_TYPES});await finishLink(h,"json")}
+  catch(e){if(!e||e.name!=="AbortError")toast("No se pudo crear el archivo")}
+}
+async function linkOpenJson(){
+  try{
+    const r=await showOpenFilePicker({types:JSON_TYPES});
+    const d=JSON.parse(await (await r[0].getFile()).text());
+    if(!d||!d.apps||!d.profile)throw new Error("formato");
+    S=d;normalize();render();
+    await finishLink(r[0],"json");
+  }catch(e){if(e&&e.name==="AbortError")return;toast("No es un archivo de datos válido")}
+}
+async function linkHtml(){
+  try{
+    const r=await showOpenFilePicker({types:[{description:"Panel (HTML)",accept:{"text/html":[".html",".htm"]}}]});
+    await finishLink(r[0],"html");
+  }catch(e){if(!e||e.name!=="AbortError")toast("No se pudo abrir el archivo")}
+}
+function unlink(){
+  if(!confirm("Se dejará de guardar en ese archivo (el archivo y sus datos no se borran). ¿Continuar?"))return;
+  fileHandle=null;fileMode="";needPerm=false;
+  kvSet("handle",null).catch(()=>{});
+  renderLinkBar();
+}
+function importPick(){
+  const i=document.createElement("input");i.type="file";i.accept=".json,application/json";
+  i.onchange=async()=>{
+    try{
+      const r=JSON.parse(await i.files[0].text());
+      if(!r||!r.apps||!r.profile)throw 0;
+      if(!confirm("Se reemplazarán los datos actuales por los del archivo. ¿Continuar?"))return;
+      S=r;normalize();render();save();toast("Datos importados");
+    }catch(e){toast("No es un archivo de datos válido")}
+  };
+  i.click();
+}
+function storageHtml(){
+  const exp='<button class="btn sec sm" id="scExp">Exportar copia</button><button class="btn sec sm" id="scImp">Importar copia</button>';
+  if(HAS_CL)return '<h3 class="sect">Guardado de datos</h3><p class="muted" style="margin-top:0">Estás usando el panel desde el enlace publicado en Claude: los datos se guardan dentro de la propia página y en tu cuenta. Para guardarlos en una carpeta de tu ordenador, abre el archivo HTML descargado (con Chrome o Edge) y configúralo aquí.</p><div class="row">'+exp+'</div>';
+  let h='<h3 class="sect">Guardado de datos en tu ordenador</h3>';
+  if(!FSA)return h+'<p class="muted" style="margin-top:0">Este navegador no puede guardar directamente en archivos (usa Chrome o Edge). Los datos quedan en este navegador y puedes llevarlos con Exportar e Importar copia.</p><div class="row">'+exp+'</div>';
+  if(fileHandle)h+='<p style="margin-top:0">Vinculado a <b>'+esc(linkName())+'</b>. '+(needPerm?'<b>Falta tu permiso para seguir guardando.</b>':'Cada cambio se guarda ahí automáticamente.')+'</p>';
+  else h+='<p class="muted" style="margin-top:0">Todavía no hay ningún archivo vinculado: ahora mismo los datos solo están en la memoria de este navegador.</p>';
+  h+='<div class="row">';
+  if(fileHandle&&needPerm)h+='<button class="btn sm" id="scRe">Reconectar</button>';
+  h+='<button class="btn'+(fileHandle?' sec':'')+' sm" id="scDir">'+(fileHandle?'Cambiar carpeta':'Elegir carpeta de datos')+'</button>'
+   +'<button class="btn sec sm" id="scNew">Crear archivo de datos nuevo</button>'
+   +'<button class="btn sec sm" id="scOpen">Abrir archivo de datos existente</button>';
+  if(fileHandle)h+='<button class="btn sec sm" id="scUnlink">Desvincular</button>';
+  h+=exp+'</div>';
+  h+='<p class="muted" style="font-size:13px;margin-bottom:0">Elige una carpeta propia (por ejemplo una llamada PanelEmpleo dentro de Documentos): el navegador no deja elegir directamente Documentos, Escritorio ni Descargas. La carpeta se recuerda; al abrir el panel otro día, tu navegador puede volver a pedir permiso. Si el aviso ofrece «Permitir en cada visita», elígelo. Si no, saldrá un botón Reconectar y basta un clic.</p>';
+  h+='<details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:13px">Opción avanzada</summary><div class="row" style="margin-top:8px"><button class="btn sec sm" id="scHtml">Guardar dentro de este mismo HTML</button><span class="muted" style="font-size:13px">Elige este mismo archivo; los datos quedarán incrustados en él.</span></div></details>';
+  return h;
+}
+function renderStorageCard(){
+  const c=$("storageCard");if(!c)return;
+  c.innerHTML=storageHtml();
+  const on=(id,f)=>{const b=$(id);if(b)b.onclick=f};
+  on("scDir",linkDir);on("scNew",linkNewJson);on("scOpen",linkOpenJson);on("scHtml",linkHtml);
+  on("scUnlink",unlink);on("scRe",reconnect);on("scExp",exportData);on("scImp",importPick);
+  renderGhCard();
+}
+function renderLinkBar(){
+  const el=$("linkBar");
+  if(el){
+    const show=!HAS_CL&&((fileHandle&&needPerm)||(!fileHandle&&!ghOn()));
+    if(!show){el.className="hidden";el.innerHTML=""}
+    else{
+      el.className="linkbar";
+      if(fileHandle)el.innerHTML='<span>Archivo de datos vinculado: <b>'+esc(fileHandle.name)+'</b>. Hace falta tu permiso para seguir guardando.</span><button class="btn sm" id="lbRe">Reconectar</button>';
+      else el.innerHTML='<span>Aún no has configurado dónde guardar tus datos (GitHub o una carpeta): lo que hagas solo se guarda en este navegador.</span><button class="btn sm" id="lbCfg">Configurar guardado</button>';
+      const re=$("lbRe");if(re)re.onclick=reconnect;
+      const cf=$("lbCfg");if(cf)cf.onclick=()=>{showTab("agent");const c=$("ghCard")||$("storageCard");if(c)c.scrollIntoView({behavior:"smooth"})};
+    }
+  }
+  renderStorageCard();
+}
+/* ===== Sincronización con GitHub (repositorio privado de datos) ===== */
+const GH_KEY="panel-empleo-gh",DIRTY_KEY="panel-empleo-dirty";
+let gh=null;try{gh=JSON.parse(localStorage.getItem(GH_KEY)||"null")}catch(e){}
+let ghBusy=false;
+const ghOn=()=>!HAS_CL&&!!(gh&&gh.owner&&gh.repo&&gh.token);
+function ghSaveCfg(){try{localStorage.setItem(GH_KEY,JSON.stringify(gh))}catch(e){}}
+function markDirty(){try{localStorage.setItem(DIRTY_KEY,"1")}catch(e){}}
+function clearDirty(){try{localStorage.removeItem(DIRTY_KEY)}catch(e){}}
+function isDirty(){try{return localStorage.getItem(DIRTY_KEY)==="1"}catch(e){return false}}
+function b64enc(s){return btoa(unescape(encodeURIComponent(s)))}
+function b64dec(s){return decodeURIComponent(escape(atob(s.replace(/\s/g,""))))}
+function ghBase(){return "https://api.github.com/repos/"+encodeURIComponent(gh.owner)+"/"+encodeURIComponent(gh.repo)}
+function ghHeaders(json){
+  const h={"Accept":"application/vnd.github+json","Authorization":"Bearer "+gh.token,"X-GitHub-Api-Version":"2022-11-28"};
+  if(json)h["Content-Type"]="application/json";
+  return h;
+}
+async function ghFetch(method,body,bust){
+  const url=ghBase()+"/contents/"+gh.path.split("/").map(encodeURIComponent).join("/")+(bust?"?t="+Date.now():"");
+  try{return await fetch(url,{method:method,cache:"no-store",headers:ghHeaders(!!body),body:body?JSON.stringify(body):undefined})}
+  catch(e){throw new Error("sin conexión con GitHub")}
+}
+async function ghFail(r){
+  let m="";try{m=(await r.json()).message||""}catch(e){}
+  if(r.status===401)return new Error("el token no es válido o ha caducado");
+  if(r.status===403)return new Error("sin permiso para esa acción o límite alcanzado"+(m?" ("+m+")":""));
+  if(r.status===404)return new Error("no se encuentra el repositorio: revisa usuario y nombre, y que el token tenga acceso a él");
+  return new Error("error "+r.status+(m?": "+m:""));
+}
+async function ghGet(){
+  const r=await ghFetch("GET",null,true);
+  if(r.status===404){
+    let rr;
+    try{rr=await fetch(ghBase(),{cache:"no-store",headers:ghHeaders(false)})}catch(e){throw new Error("sin conexión con GitHub")}
+    if(rr.ok)return{missing:true};
+    throw await ghFail(rr);
+  }
+  if(!r.ok)throw await ghFail(r);
+  const j=await r.json();
+  let d;
+  try{d=JSON.parse(b64dec(j.content||""))}catch(e){throw new Error("el archivo de datos de GitHub no tiene un formato válido")}
+  if(!d||!d.apps||!d.profile)throw new Error("el archivo de datos de GitHub no tiene un formato válido");
+  return{data:d,sha:j.sha};
+}
+function adopt(d){
+  S=d;normalize();
+  try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}
+  render();
+}
+async function ghConflict(cur){
+  if(confirm("Los datos de GitHub son distintos de los de este dispositivo (quizá se editaron desde otro).\n\nAceptar = usar los de GitHub (se descartan los cambios de aquí que no estén subidos).\nCancelar = subir los de este dispositivo y sobrescribir GitHub.")){
+    adopt(cur.data);gh.sha=cur.sha;ghSaveCfg();clearDirty();setSave("Datos cargados desde GitHub ✓");
+  }else{gh.sha=cur.sha;await ghPush()}
+}
+async function ghPush(){
+  const body={message:"Panel de empleo: "+new Date().toISOString().slice(0,16).replace("T"," "),content:b64enc(JSON.stringify(S,null,2))};
+  if(gh.sha)body.sha=gh.sha;
+  let r=await ghFetch("PUT",body);
+  if(r.status===409||r.status===422){
+    const cur=await ghGet();
+    if(cur.missing){delete body.sha;r=await ghFetch("PUT",body)}
+    else if(cur.sha!==gh.sha){await ghConflict(cur);return}
+    else throw await ghFail(r);
+  }
+  if(!r.ok)throw await ghFail(r);
+  const j=await r.json();
+  gh.sha=j.content.sha;gh.last=Date.now();ghSaveCfg();clearDirty();
+}
+async function ghFlush(){
+  while(ghBusy)await new Promise(res=>setTimeout(res,120));
+  ghBusy=true;
+  try{await ghPush()}finally{ghBusy=false}
+}
+async function ghSync(manual){
+  if(!ghOn()||ghBusy)return;
+  ghBusy=true;
+  try{
+    setSave("Sincronizando con GitHub…");
+    const r=await ghGet();
+    if(r.missing){await ghPush();setSave("Archivo de datos creado en GitHub ✓")}
+    else if(r.sha===gh.sha){
+      if(isDirty()){await ghPush();setSave("Cambios subidos a GitHub ✓")}else setSave("GitHub al día ✓");
+    }else{
+      const same=JSON.stringify([r.data.apps,r.data.profile,r.data.rules])===JSON.stringify([S.apps,S.profile,S.rules]);
+      if(same){gh.sha=r.sha;clearDirty();setSave("GitHub al día ✓")}
+      else if(isDirty()||(!gh.sha&&S.apps.length>0))await ghConflict(r);
+      else if(!manual&&$("modalRoot")&&$("modalRoot").innerHTML){setSave("Hay datos nuevos en GitHub; se cargarán la próxima vez que sincronices.")}
+      else{adopt(r.data);gh.sha=r.sha;clearDirty();setSave("Datos actualizados desde GitHub ✓")}
+    }
+    gh.last=Date.now();ghSaveCfg();
+  }catch(e){setSave("GitHub: "+((e&&e.message)||"error"),true)}
+  ghBusy=false;renderStorageCard();
+}
+function ghHtml(){
+  if(HAS_CL)return '<h3 class="sect">Sincronización con GitHub</h3><p class="muted" style="margin:0">No está disponible dentro del enlace de Claude. Funciona al abrir el panel desde tu página de GitHub Pages o desde el archivo descargado.</p>';
+  const on=ghOn();
+  let h='<h3 class="sect">Sincronización con GitHub (acceso desde cualquier dispositivo)</h3>';
+  h+=on?'<p style="margin-top:0">Conectado a <b>'+esc(gh.owner+"/"+gh.repo)+'</b> · archivo <b>'+esc(gh.path)+'</b>'+(gh.last?' · última sincronización '+new Date(gh.last).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}):"")+'. Cada cambio se guarda también ahí.</p>'
+    :'<p class="muted" style="margin-top:0">Sin conectar. Tus datos se guardan en un repositorio privado tuyo de GitHub: así los tienes en todos tus dispositivos y con copia de seguridad.</p>';
+  h+='<div class="grid2"><div><label>Usuario de GitHub</label><input id="ghOwner" value="'+esc(gh&&gh.owner||"")+'" placeholder="tu-usuario"></div>'
+   +'<div><label>Repositorio de datos (privado)</label><input id="ghRepo" value="'+esc(gh&&gh.repo||"panel-empleo-datos")+'"></div>'
+   +'<div><label>Archivo</label><input id="ghPath" value="'+esc(gh&&gh.path||DATA_NAME)+'"></div>'
+   +'<div><label>Token de acceso</label><input id="ghToken" type="password" autocomplete="off" placeholder="'+(on?"guardado en este navegador (vacío = conservarlo)":"github_pat_…")+'"></div></div>';
+  h+='<div class="row" style="margin-top:12px"><button class="btn sm" id="ghConnect">'+(on?"Guardar cambios y probar":"Conectar y probar")+'</button>'+(on?'<button class="btn sec sm" id="ghNow">Sincronizar ahora</button><button class="btn sec sm" id="ghOff">Desconectar</button>':"")+'</div>';
+  h+='<p class="muted" style="font-size:13px;margin-bottom:0">El token se guarda solo en este navegador y hay que ponerlo una vez en cada dispositivo. Usa un token limitado a ese único repositorio y no lo compartas con nadie.</p>';
+  return h;
+}
+function renderGhCard(){
+  const c=$("ghCard");if(!c)return;
+  c.innerHTML=ghHtml();
+  const on=(id,f)=>{const b=$(id);if(b)b.onclick=f};
+  on("ghConnect",async()=>{
+    const owner=$("ghOwner").value.trim(),repo=$("ghRepo").value.trim(),path=$("ghPath").value.trim()||DATA_NAME;
+    const tok=$("ghToken").value.trim()||(gh&&gh.token)||"";
+    if(!owner||!repo||!tok){toast("Faltan usuario, repositorio o token");return}
+    const same=gh&&gh.owner===owner&&gh.repo===repo&&gh.path===path;
+    gh={owner:owner,repo:repo,path:path,token:tok,sha:same?gh.sha:"",last:same?gh.last:0};
+    ghSaveCfg();renderLinkBar();await ghSync(true);
+  });
+  on("ghNow",()=>ghSync(true));
+  on("ghOff",()=>{
+    if(!confirm("Se desconectará GitHub en este navegador (tus datos en GitHub no se borran). ¿Continuar?"))return;
+    gh=null;try{localStorage.removeItem(GH_KEY)}catch(e){}
+    renderLinkBar();
+  });
+}
+function getSample(){
+  if(!HAS_CL)return Promise.reject({code:"no_runtime"});
+  return claude.use("sample");
+}
+
+/* ===== Utilidades de dominio ===== */
+function fitPill(f){
+  const x=FITS.find(a=>a[0]===f);
+  if(!x)return '<span class="pill neutral">Sin valorar</span>';
+  return `<span class="pill ${f==="probable"?"ok":f==="medio"?"warn":"bad"}">${x[1]}</span>`;
+}
+function modPill(m){
+  if(!m)return '<span class="muted">—</span>';
+  const k=m==="Remoto"?"m-remoto":m==="Híbrido"?"m-hibrido":"m-presencial";
+  return `<span class="pill ${k}">${esc(m)}</span>`;
+}
+function stageClass(s){return s==="Sin respuesta"?"warn":s==="Rechazada"?"bad":"info"}
+function fitFromMatch(m){return m>=70?"probable":m>=45?"medio":"poco"}
+function rulesText(){return S.rules.length?"Reglas definidas por el usuario (síguelas siempre):\n- "+S.rules.join("\n- "):"Sin reglas personalizadas."}
+function profileText(){
+  const p=S.profile;
+  return `Nombre: ${p.name}\nTitular: ${p.headline}\nUbicación: ${p.location}\nModalidad preferida: ${p.modality}\nIdiomas: ${p.langs.join(", ")}\nRoles objetivo: ${p.targetRoles.join(", ")}\nSkills: ${p.skills.join(", ")}\nFormación: ${p.education}\nExperiencia: ${p.experience}\nPortfolio: ${p.portfolio||"(sin indicar)"}\nNotas: ${p.notes||"-"}`;
+}
+const KW=["zbrush","maya","3ds max","blender","marvelous","substance","rizom","topogun","xgen","marmoset","photoshop","unreal","unity","houdini","speedtree","retopolog","grooming","hair","cloth","tela","sculpt","escultura","texturi","pbr","aaa","rigging","animation","animación","lod","bake","stylized","realistic","realista","character","personaje","environment","entorno","props","hard surface","nanite","metahuman","perforce","git"];
+function quickScore(desc){
+  const d=desc.toLowerCase(),sk=S.profile.skills.map(s=>s.toLowerCase());
+  const found=KW.filter(k=>d.includes(k));
+  if(!found.length)return null;
+  const mine=found.filter(k=>sk.some(s=>s.includes(k)||k.includes(s)));
+  return Math.round(25+75*(mine.length/found.length)*Math.min(1,found.length/6+0.4));
+}
+function counts(){
+  const apps=S.apps.filter(a=>!a.radar&&a.stage!=="Preparando");
+  return{
+    sent:apps.length,
+    resp:apps.filter(a=>RESP.includes(a.stage)).length,
+    wait:apps.filter(a=>a.stage==="Sin respuesta").length,
+    rej:apps.filter(a=>a.stage==="Rechazada").length
+  };
+}
+
+/* ===== Estructura ===== */
+function init(){
+  $("root").innerHTML=`
+  <header>
+    <h1>Panel de búsqueda de empleo</h1>
+    <span id="saveState" class="muted" style="font-size:12px"></span>
+    <nav id="nav">
+      <button data-t="board">Candidaturas</button>
+      <button data-t="radar">Radar de ofertas</button>
+      <button data-t="profile">Mi perfil</button>
+      <button data-t="agent">Agente IA</button>
+    </nav>
+  </header>
+  <div id="linkBar" class="hidden"></div>
+  <main>
+    <section id="t-board"></section>
+    <section id="t-radar"></section>
+    <section id="t-profile"></section>
+    <section id="t-agent"></section>
+  </main>
+  <div id="modalRoot"></div>`;
+  $("nav").addEventListener("click",e=>{const t=e.target.dataset.t;if(t)showTab(t)});
+  render();
+  showTab(ss("tab")||"board");
+}
+function showTab(t){
+  ss("tab",t);
+  document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));
+  ["board","radar","profile","agent"].forEach(x=>$("t-"+x).classList.toggle("hidden",x!==t));
+}
+function render(){renderBoard();renderRadar();renderProfile();renderAgent()}
+
+/* ===== Candidaturas ===== */
+function greeting(){
+  const h=new Date().getHours();
+  return h<13?"Buenos días":h<20?"Buenas tardes":"Buenas noches";
+}
+const STAGE_OPTS=[["all","Estado: todos"],["Sin respuesta","Sin respuesta"],["__resp","Respondidas (cualquier avance)"],["Respondida","Respondida"],["Entrevista","Entrevista"],["Prueba técnica","Prueba técnica"],["Oferta","Oferta"],["Rechazada","Rechazada"],["Preparando","Preparando"]];
+function opts(list,cur){return list.map(o=>`<option value="${esc(o[0])}" ${o[0]===cur?"selected":""}>${esc(o[1])}</option>`).join("")}
+function renderBoard(){
+  const c=counts(),pct=n=>c.sent?Math.round(100*n/c.sent)+"% del total":"";
+  const sentApps=S.apps.filter(a=>!a.radar&&a.stage!=="Preparando").map(a=>a.date).filter(Boolean).sort();
+  const last=sentApps.length?sentApps[sentApps.length-1]:null;
+  const nick=S.profile.nick||S.profile.name;
+  const countries=[...new Set(S.apps.filter(a=>!a.radar&&a.country).map(a=>a.country))].sort((x,y)=>x.localeCompare(y,"es"));
+  if(filt.country!=="all"&&filt.country!=="__none"&&!countries.includes(filt.country))filt.country="all";
+  const inCountry=a=>filt.country==="all"||(filt.country==="__none"?!a.country:a.country===filt.country);
+  const cities=[...new Set(S.apps.filter(a=>!a.radar&&a.city&&inCountry(a)).map(a=>a.city))].sort((x,y)=>x.localeCompare(y,"es"));
+  $("t-board").innerHTML=`
+  <div class="row" style="justify-content:space-between;align-items:flex-end">
+    <div><h2 class="hello">Hola${nick?", "+esc(nick):""}</h2>
+    <div class="muted">${greeting()}. ${c.sent?`Llevas ${c.sent} candidaturas enviadas${last?` · la última, el ${fmt(last)}`:""}.`:"Aún no hay candidaturas registradas."}</div></div>
+    <div class="row"><button class="btn sec" id="exportBtn">Exportar copia</button><button class="btn" id="newApp">+ Nueva candidatura</button></div>
+  </div>
+  <div class="stats">
+    <div class="stat click" data-st="all"><b>${c.sent}</b><span>Enviadas</span></div>
+    <div class="stat click" data-st="__resp"><b>${c.resp}</b><span>Respondidas</span><small>${pct(c.resp)}</small></div>
+    <div class="stat click" data-st="Sin respuesta"><b>${c.wait}</b><span>Sin contestar</span><small>${pct(c.wait)}</small></div>
+    <div class="stat click" data-st="Rechazada"><b>${c.rej}</b><span>Rechazadas</span><small>${pct(c.rej)}</small></div>
+  </div>
+  <section class="sec ${closedCls("prog")}" id="secProg">
+    <button class="sechead" data-sec="prog"><span class="caret">▾</span>En curso <span class="pill info" id="progCount">0</span></button>
+    <div class="secbody" id="progBody"></div>
+  </section>
+  <section class="sec ${closedCls("all")}" id="secAll">
+    <button class="sechead" data-sec="all"><span class="caret">▾</span>Todas las candidaturas <span class="pill" id="allCount"></span></button>
+    <div class="secbody">
+  <div class="toolbar">
+    <input class="search" id="q" placeholder="Buscar empresa, puesto, ciudad o país…" value="${esc(filt.q)}">
+    <select class="filt" id="fSt">${opts(STAGE_OPTS,filt.st)}</select>
+    <select class="filt" id="fMod">${opts([["all","Modalidad: todas"],["Remoto","Remoto"],["Híbrido","Híbrido"],["Presencial","Presencial"],["__none","Sin indicar"]],filt.mod)}</select>
+    <select class="filt" id="fFit">${opts([["all","Encaje: todos"],["probable","Probable"],["medio","Medio"],["poco","Poco"],["__none","Sin valorar"]],filt.fit)}</select>
+    <select class="filt" id="fCountry">${opts([["all","País: todos"]].concat(countries.map(x=>[x,x])).concat([["__none","Sin indicar"]]),filt.country)}</select>
+    <select class="filt" id="fCity">${opts([["all","Ciudad: todas"]].concat(cities.map(x=>[x,x])).concat([["__none","Sin indicar"]]),filt.city)}</select>
+    <button class="btn sec sm" id="fClear">Limpiar filtros</button>
+    <span class="muted" id="count" style="font-size:13px"></span>
+  </div>
+  <div class="lhead"><div>Empresa y puesto</div><div>Ciudad</div><div>País</div><div>Modalidad</div><div>Fecha</div><div>Encaje</div><div>Estado</div><div></div></div>
+  <div id="rows"></div>
+    </div>
+  </section>`;
+  $("q").addEventListener("input",e=>{filt.q=e.target.value;saveFilt();renderRows()});
+  [["fSt","st"],["fMod","mod"],["fFit","fit"],["fCity","city"]].forEach(p=>$(p[0]).addEventListener("change",e=>{filt[p[1]]=e.target.value;saveFilt();renderRows()}));
+  $("fCountry").addEventListener("change",e=>{filt.country=e.target.value;filt.city="all";saveFilt();renderBoard()});
+  $("fClear").onclick=()=>{filt={q:"",st:"all",mod:"all",fit:"all",country:"all",city:"all"};saveFilt();renderBoard()};
+  $("t-board").querySelectorAll(".stat.click").forEach(el=>el.onclick=()=>{filt.st=el.dataset.st;saveFilt();renderBoard()});
+  $("newApp").onclick=()=>openApp(null,false);
+  $("exportBtn").onclick=exportData;
+  $("t-board").querySelectorAll(".sechead").forEach(b=>b.onclick=()=>{const s=b.parentElement;s.classList.toggle("closed");uiSet(b.dataset.sec,s.classList.contains("closed"))});
+  renderInProg();
+  renderRows();
+}
+function uiGet(k){try{return !!JSON.parse(localStorage.getItem("panel-empleo-ui")||"{}")[k]}catch(e){return false}}
+function uiSet(k,v){try{const o=JSON.parse(localStorage.getItem("panel-empleo-ui")||"{}");o[k]=v;localStorage.setItem("panel-empleo-ui",JSON.stringify(o))}catch(e){}}
+const closedCls=k=>uiGet(k)?"closed":"";
+const ORDER={"Oferta":0,"Prueba técnica":1,"Entrevista":2,"Respondida":3,"Preparando":4};
+function renderInProg(){
+  const list=S.apps.filter(a=>!a.radar&&a.stage!=="Sin respuesta"&&a.stage!=="Rechazada")
+    .sort((x,y)=>((ORDER[x.stage]==null?9:ORDER[x.stage])-(ORDER[y.stage]==null?9:ORDER[y.stage]))||(y.date||"").localeCompare(x.date||""));
+  $("progCount").textContent=list.length;
+  $("progBody").innerHTML=list.length
+    ?'<div class="lhead"><div>Empresa y puesto</div><div>Ciudad</div><div>País</div><div>Modalidad</div><div>Fecha</div><div>Encaje</div><div>Estado</div><div></div></div><div id="inprogRows">'+list.map(a=>rowHtml(a,false)).join("")+'</div>'
+    :'<div class="card muted">Ninguna candidatura en curso ahora mismo. Cuando una pase a Preparando, Respondida, Entrevista, Prueba técnica u Oferta, aparecerá aquí.</div>';
+  if(list.length)wireRows($("inprogRows"),false);
+}
+function passFilter(a){
+  if(filt.st==="__resp"){if(!RESP.includes(a.stage))return false}
+  else if(filt.st!=="all"&&a.stage!==filt.st)return false;
+  if(filt.mod!=="all"&&(filt.mod==="__none"?a.modality:a.modality!==filt.mod))return false;
+  if(filt.fit!=="all"&&(filt.fit==="__none"?a.fit:a.fit!==filt.fit))return false;
+  if(filt.country!=="all"&&(filt.country==="__none"?a.country:a.country!==filt.country))return false;
+  if(filt.city!=="all"&&(filt.city==="__none"?a.city:a.city!==filt.city))return false;
+  const q=filt.q.trim().toLowerCase();
+  if(q&&!(a.company+" "+a.role+" "+a.city+" "+a.country).toLowerCase().includes(q))return false;
+  return true;
+}
+function rowHtml(a,radar){
+  const last=radar
+    ?`<button class="btn sec sm" data-act="toboard">Pasar a candidaturas</button>`
+    :`<select data-stage class="stsel ${stageClass(a.stage)}">${STAGES.map(s=>`<option ${s===a.stage?"selected":""}>${s}</option>`).join("")}</select>`;
+  return `<div class="ritem" data-id="${a.id}">
+    <div class="c-main"><b>${esc(a.company||"Sin empresa")}</b><span>${esc(a.role||"—")}</span></div>
+    <div class="c-city">${esc(a.city||"—")}</div>
+    <div class="c-city">${esc(a.country||"—")}</div>
+    <div class="c-mod">${modPill(a.modality)}</div>
+    <div class="c-date">${fmt(a.date)}</div>
+    <div class="c-fit">${fitPill(a.fit)}</div>
+    <div class="c-stage">${last}</div>
+    <div class="c-link">${a.url?`<a href="${esc(a.url)}" target="_blank" rel="noopener" title="Abrir oferta">↗</a>`:""}</div>
+  </div>`;
+}
+function wireRows(root,radar){
+  root.querySelectorAll(".ritem").forEach(r=>{
+    const a=S.apps.find(x=>x.id===r.dataset.id);
+    r.addEventListener("click",e=>{
+      if(e.target.closest("select,a,button"))return;
+      openApp(r.dataset.id,radar);
+    });
+    const sel=r.querySelector("select[data-stage]");
+    if(sel)sel.addEventListener("change",()=>{
+      a.stage=sel.value;a.events.push({d:todayISO(),t:"Estado → "+a.stage});
+      save();renderBoard();
+    });
+    const tb=r.querySelector('[data-act="toboard"]');
+    if(tb)tb.addEventListener("click",()=>{
+      a.radar=false;a.stage="Preparando";a.events.push({d:todayISO(),t:"Pasada a candidaturas"});
+      save();render();toast("Pasada a candidaturas");
+    });
+  });
+}
+function renderRows(){
+  const list=S.apps.filter(a=>!a.radar&&passFilter(a)).sort((x,y)=>(y.date||"").localeCompare(x.date||""));
+  const total=S.apps.filter(a=>!a.radar).length;
+  const ac=$("allCount");if(ac)ac.textContent=total;
+  const cnt=$("count");if(cnt)cnt.textContent="Mostrando "+list.length+" de "+total;
+  $("rows").innerHTML=list.map(a=>rowHtml(a,false)).join("")||'<div class="card muted">No hay candidaturas con esos filtros.</div>';
+  wireRows($("rows"),false);
+}
+
+/* ===== Radar ===== */
+function renderRadar(){
+  const offers=S.apps.filter(a=>a.radar).sort((x,y)=>(y.date||"").localeCompare(x.date||""));
+  $("t-radar").innerHTML=`
+  <div class="row" style="justify-content:space-between;margin-bottom:10px">
+    <div><h2 style="margin:0 0 4px;font-size:20px">Radar de ofertas</h2>
+    <span class="muted">Guarda ofertas antes de candidatarte. Pega el texto y el agente calcula el encaje, qué ajustar y un mensaje de propuesta.</span></div>
+    <button class="btn" id="newOffer">+ Añadir oferta</button>
+  </div>
+  <div class="note" style="margin-bottom:14px">Esta página no puede navegar por internet ni ejecutarse sola cada día. La búsqueda diaria automática de ofertas hay que montarla aparte; mientras tanto, añade aquí las que encuentres.</div>
+  <div class="lhead"><div>Empresa y puesto</div><div>Ciudad</div><div>País</div><div>Modalidad</div><div>Fecha</div><div>Encaje</div><div></div><div></div></div>
+  <div id="radarRows">${offers.map(a=>rowHtml(a,true)).join("")||'<div class="card muted">Todavía no hay ofertas en el radar.</div>'}</div>`;
+  $("newOffer").onclick=()=>openApp(null,true);
+  wireRows($("radarRows"),true);
+}
+
+/* ===== Ficha / edición ===== */
+function closeModal(){$("modalRoot").innerHTML=""}
+function openApp(id,radar){
+  const orig=id?S.apps.find(x=>x.id===id):null;
+  const d=orig?JSON.parse(JSON.stringify(orig)):{id:uid(),company:"",role:"",city:"",country:"",modality:"",date:todayISO(),fit:"",stage:radar?"Preparando":"Sin respuesta",url:"",email:"",notes:"",desc:"",match:null,analysis:null,radar:!!radar,events:[{d:todayISO(),t:radar?"Oferta añadida al radar":"Candidatura creada"}]};
+  const read=()=>{
+    d.company=$("f-company").value.trim();d.role=$("f-role").value.trim();
+    d.city=$("f-city").value.trim();d.country=$("f-country").value.trim();d.modality=$("f-mod").value;
+    d.date=$("f-date").value;d.fit=$("f-fit").value;
+    d.url=$("f-url").value.trim();d.email=$("f-email").value.trim();
+    d.desc=$("f-desc").value;d.notes=$("f-notes").value;
+    const st=$("f-stage");
+    if(st&&st.value!==d.stage){d.stage=st.value;d.events.push({d:todayISO(),t:"Estado → "+d.stage})}
+  };
+  const commit=()=>{
+    if(orig)Object.assign(orig,d);else S.apps.push(d);
+    save();render();
+  };
+  function draw(){
+    $("modalRoot").innerHTML=`<div class="modal"><div class="card">
+      <div class="row" style="justify-content:space-between"><h2 style="margin:0;font-size:18px">${orig?esc(d.company||"Sin empresa"):(d.radar?"Nueva oferta":"Nueva candidatura")}</h2><button class="btn sec sm" id="x">Cerrar</button></div>
+      <div class="grid2">
+        <div><label>Empresa</label><input id="f-company" value="${esc(d.company)}"></div>
+        <div><label>Puesto</label><input id="f-role" value="${esc(d.role)}"></div>
+        <div><label>Ciudad</label><input id="f-city" value="${esc(d.city)}"></div>
+        <div><label>País</label><input id="f-country" value="${esc(d.country)}"></div>
+        <div><label>Modalidad</label><select id="f-mod"><option value="">—</option>${MODS.map(m=>`<option ${m===d.modality?"selected":""}>${m}</option>`).join("")}</select></div>
+        <div><label>Fecha</label><input type="date" id="f-date" value="${esc(d.date)}"></div>
+        <div><label>Probabilidad de encaje</label><select id="f-fit"><option value="">Sin valorar</option>${FITS.map(f=>`<option value="${f[0]}" ${f[0]===d.fit?"selected":""}>${f[1]}</option>`).join("")}</select></div>
+        ${d.radar?"":`<div><label>Estado</label><select id="f-stage">${STAGES.map(s=>`<option ${s===d.stage?"selected":""}>${s}</option>`).join("")}</select></div>`}
+        <div><label>Correo de contacto</label><input id="f-email" value="${esc(d.email)}"></div>
+      </div>
+      <label>Enlace a la oferta</label><input id="f-url" value="${esc(d.url)}" placeholder="https://...">
+      <label>Descripción de la oferta (pega aquí el texto para analizarla)</label>
+      <textarea id="f-desc" style="min-height:130px">${esc(d.desc)}</textarea>
+      <label>Notas</label><textarea id="f-notes">${esc(d.notes)}</textarea>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="analyze">Analizar con IA</button>
+        <button class="btn sec" id="save">Guardar</button>
+        ${d.radar?'<button class="btn sec" id="toBoard">Pasar a candidaturas</button>':""}
+        ${orig?'<button class="btn sec" id="del" style="margin-left:auto;color:var(--bad)">Eliminar</button>':""}
+      </div>
+      <div id="aiOut">${d.analysis?analysisHtml(d):""}</div>
+      ${d.events.filter(e=>e.t).length?`<h3 class="sect" style="margin-top:18px">Historial</h3><ul class="clean muted">${d.events.filter(e=>e.t).slice().reverse().map(e=>`<li>${fmt(e.d)} · ${esc(e.t)}</li>`).join("")}</ul>`:""}
+    </div></div>`;
+    wire();
+  }
+  function wire(){
+    $("x").onclick=closeModal;
+    $("save").onclick=()=>{read();if(!d.company){toast("Falta la empresa");return}commit();closeModal()};
+    const del=$("del");
+    if(del)del.onclick=()=>{if(confirm("¿Eliminar esta entrada?")){S.apps=S.apps.filter(x=>x!==orig);save();render();closeModal()}};
+    const tb=$("toBoard");
+    if(tb)tb.onclick=()=>{read();if(!d.company){toast("Falta la empresa");return}d.radar=false;d.stage="Preparando";d.events.push({d:todayISO(),t:"Pasada a candidaturas"});commit();closeModal()};
+    const cp=$("copyMsg");
+    if(cp)cp.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(d.analysis.message).then(()=>toast("Mensaje copiado")).catch(()=>toast("No se pudo copiar"))};
+    $("analyze").onclick=analyze;
+  }
+  async function analyze(){
+    read();
+    if(!d.desc.trim()){toast("Pega primero la descripción de la oferta");return}
+    const out=$("aiOut"),btn=$("analyze");
+    const q=quickScore(d.desc);
+    out.innerHTML=`<div class="note" style="margin-top:14px">Estimación rápida: ${q==null?"—":q+"%"}. El agente está analizando la oferta…</div>`;
+    btn.disabled=true;
+    try{
+      const sample=await getSample();
+      if(!sample)throw {code:"unavailable"};
+      const prompt=`Eres un agente de búsqueda de empleo para un artista 3D del sector de los videojuegos. Analiza la oferta frente al perfil. Sé honesto y concreto; no inventes datos del candidato ni de la empresa.
+
+PERFIL:
+${profileText()}
+
+${rulesText()}
+
+OFERTA:
+Empresa: ${d.company||"(sin indicar)"}
+Puesto: ${d.role||"(sin indicar)"}
+Ciudad: ${d.city||"(sin indicar)"} · País: ${d.country||"(sin indicar)"} · Modalidad: ${d.modality||"(sin indicar)"}
+${d.desc}
+
+Responde SOLO con JSON con esta forma exacta:
+{"match": número 0-100 de compatibilidad aproximada,
+ "summary": "2 frases sobre el encaje",
+ "strengths": ["puntos fuertes concretos del perfil para esta oferta"],
+ "gaps": ["requisitos que faltan o están flojos"],
+ "recommendations": ["cambios concretos a hacer en CV, portfolio o carta para esta oferta"],
+ "message": "mensaje de presentación listo para enviar (máx. 140 palabras, en el idioma de la oferta, tono profesional y cercano, sin inventar experiencia)"}`;
+      const r=await sample.json(prompt,{modelTier:"default"});
+      d.match=Math.max(0,Math.min(100,Math.round(Number(r.match)||q||0)));
+      d.fit=fitFromMatch(d.match);
+      d.analysis={summary:r.summary||"",strengths:r.strengths||[],gaps:r.gaps||[],recommendations:r.recommendations||[],message:r.message||"",at:todayISO()};
+      d.events.push({d:todayISO(),t:`Análisis IA: ${d.match}% de compatibilidad`});
+      draw();
+      $("aiOut").insertAdjacentHTML("afterbegin",'<div class="note" style="margin-top:14px">Pulsa Guardar para conservar este análisis.</div>');
+    }catch(e){
+      const m=e&&e.code==="no_runtime"?"La IA solo funciona abriendo el panel desde el enlace publicado en Claude, no desde un archivo descargado.":e&&e.code==="not_granted"?"Has rechazado el permiso para usar Claude desde esta página.":e&&e.code==="rate_limited"?"Demasiadas peticiones seguidas; espera un momento.":"No se pudo completar el análisis con IA ahora mismo.";
+      out.innerHTML=`<div class="note" style="margin-top:14px">${m} Estimación rápida por palabras clave: ${q==null?"no hay suficientes datos":q+"%"}.</div>`;
+      btn.disabled=false;
+    }
+  }
+  draw();
+}
+function analysisHtml(d){
+  const x=d.analysis;
+  const li=arr=>arr.length?`<ul class="clean">${arr.map(s=>`<li>${esc(s)}</li>`).join("")}</ul>`:'<p class="muted">—</p>';
+  return `<div style="margin-top:16px">
+    <div class="row" style="justify-content:space-between"><b>Compatibilidad aproximada</b><span class="pill">${d.match==null?"—":d.match+"%"}</span></div>
+    <div class="meter" style="margin:6px 0 10px"><i style="width:${d.match||0}%"></i></div>
+    <p>${esc(x.summary)}</p>
+    <h3 class="sect">Puntos fuertes</h3>${li(x.strengths)}
+    <h3 class="sect">Lo que te falta</h3>${li(x.gaps)}
+    <h3 class="sect">Qué cambiar para esta oferta</h3>${li(x.recommendations)}
+    <h3 class="sect">Mensaje de propuesta</h3>
+    <pre class="draft">${esc(x.message)}</pre>
+    <button class="btn sec sm" id="copyMsg">Copiar mensaje</button>
+  </div>`;
+}
+
+/* ===== Perfil ===== */
+function renderProfile(){
+  const p=S.profile;
+  const chips=(arr,k)=>arr.map((s,i)=>`<span class="tag">${esc(s)}<button data-k="${k}" data-i="${i}" title="Quitar">×</button></span>`).join("");
+  $("t-profile").innerHTML=`<div class="card" style="max-width:900px">
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0;font-size:20px">Mi perfil</h2><button class="btn" id="saveProfile">Guardar perfil</button></div>
+    <p class="muted" style="margin-top:4px">El agente usa esta información para calcular el encaje y redactar los mensajes. Pulsa Guardar perfil cuando termines de editar.</p>
+    <div class="grid3">
+      <div><label>Nombre</label><input data-f="name" value="${esc(p.name)}"></div>
+      <div><label>Cómo quieres que te salude</label><input data-f="nick" value="${esc(p.nick||"")}"></div>
+      <div><label>Ubicación</label><input data-f="location" value="${esc(p.location)}"></div>
+      <div><label>Modalidad preferida</label><select data-f="modality">${["Híbrido","Presencial","Remoto","Cualquiera"].map(m=>`<option ${m===p.modality?"selected":""}>${m}</option>`).join("")}</select></div>
+      <div style="grid-column:span 2"><label>Portfolio (enlace)</label><input data-f="portfolio" value="${esc(p.portfolio)}" placeholder="https://artstation.com/..."></div>
+    </div>
+    <label>Titular</label><input data-f="headline" value="${esc(p.headline)}">
+    <label>Roles objetivo</label><div>${chips(p.targetRoles,"targetRoles")}</div>
+    <div class="row" style="margin-top:6px"><input id="addRole" placeholder="Añadir rol" style="max-width:260px"><button class="btn sec sm" data-add="targetRoles" data-src="addRole">Añadir</button></div>
+    <label>Skills y software</label><div>${chips(p.skills,"skills")}</div>
+    <div class="row" style="margin-top:6px"><input id="addSkill" placeholder="Añadir skill" style="max-width:260px"><button class="btn sec sm" data-add="skills" data-src="addSkill">Añadir</button></div>
+    <label>Idiomas</label><div>${chips(p.langs,"langs")}</div>
+    <div class="row" style="margin-top:6px"><input id="addLang" placeholder="Añadir idioma" style="max-width:260px"><button class="btn sec sm" data-add="langs" data-src="addLang">Añadir</button></div>
+    <label>Formación</label><textarea data-f="education">${esc(p.education)}</textarea>
+    <label>Experiencia</label><textarea data-f="experience">${esc(p.experience)}</textarea>
+    <label>Notas para el agente (preferencias, sueldo objetivo, lo que evitar…)</label><textarea data-f="notes">${esc(p.notes)}</textarea>
+  </div>`;
+  const el=$("t-profile");
+  el.querySelectorAll("[data-f]").forEach(i=>i.addEventListener("input",()=>{S.profile[i.dataset.f]=i.value}));
+  el.querySelectorAll(".tag button").forEach(b=>b.onclick=()=>{S.profile[b.dataset.k].splice(+b.dataset.i,1);renderProfile()});
+  el.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{
+    const v=$(b.dataset.src).value.trim();if(!v)return;
+    S.profile[b.dataset.add].push(v);renderProfile();
+  });
+  $("saveProfile").onclick=()=>{save();renderBoard();toast("Guardando perfil…")};
+}
+
+/* ===== Agente ===== */
+function renderAgent(){
+  $("t-agent").innerHTML=`<div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:16px;align-items:start" id="agentGrid">
+    <div class="card">
+      <h2 style="margin:0 0 4px;font-size:20px">Agente IA</h2>
+      <p class="muted" style="margin-top:0">Habla con él para cambiar cómo analiza ofertas o redacta mensajes. Ej.: “Prioriza estudios con trabajo híbrido en Madrid”, “escribe los mensajes más breves”.</p>
+      <div class="chat" id="chatBox">${chat.length?chat.map(m=>`<div class="msg ${m.r==="u"?"u":"a"}">${esc(m.t)}</div>`).join(""):'<div class="muted">Aún no hay conversación.</div>'}</div>
+      <div class="row" style="margin-top:12px;flex-wrap:nowrap"><input id="chatIn" placeholder="Escribe al agente…"><button class="btn" id="chatSend">Enviar</button></div>
+    </div>
+    <div class="card">
+      <h3 class="sect">Reglas activas del agente</h3>
+      <p class="muted" style="font-size:13px;margin-top:0">Se aplican en cada análisis y mensaje. Cuando le pidas un cambio de comportamiento estable, se añadirá aquí.</p>
+      ${S.rules.length?`<ul class="clean">${S.rules.map((r,i)=>`<li>${esc(r)} <button class="btn sec sm" data-rm="${i}">×</button></li>`).join("")}</ul>`:'<p class="muted">Sin reglas todavía.</p>'}
+      <div class="row" style="margin-top:8px"><input id="ruleIn" placeholder="Añadir regla a mano"><button class="btn sec sm" id="ruleAdd">Añadir</button></div>
+    </div>
+  </div>
+  <div class="card" id="storageCard" style="margin-top:16px"></div>
+  <div class="card" id="ghCard" style="margin-top:16px"></div>`;
+  if(window.innerWidth<800)$("agentGrid").style.gridTemplateColumns="1fr";
+  const box=$("chatBox");box.scrollTop=box.scrollHeight;
+  renderStorageCard();
+  $("chatSend").onclick=sendChat;
+  $("chatIn").addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});
+  $("t-agent").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{S.rules.splice(+b.dataset.rm,1);save();renderAgent()});
+  $("ruleAdd").onclick=()=>{const v=$("ruleIn").value.trim();if(!v)return;S.rules.push(v);save();renderAgent()};
+}
+async function sendChat(){
+  if(busy)return;
+  const inp=$("chatIn"),text=inp.value.trim();
+  if(!text)return;
+  busy=true;chat.push({r:"u",t:text});ss("chat",JSON.stringify(chat.slice(-30)));
+  renderAgent();
+  const b2=$("chatBox");
+  b2.insertAdjacentHTML("beforeend",'<div class="msg a">Pensando…</div>');b2.scrollTop=b2.scrollHeight;
+  let newRule=false;
+  try{
+    const sample=await getSample();
+    if(!sample)throw {code:"unavailable"};
+    let turns=chat.slice(-12).map(m=>({role:m.r==="u"?"user":"assistant",content:m.t}));
+    while(turns.length&&turns[0].role!=="user")turns.shift();
+    const c=counts();
+    const instruction=`[Instrucciones para ti: eres el agente de búsqueda de empleo de un artista 3D de videojuegos, dentro de su panel personal. No puedes navegar por internet desde aquí. Puedes explicar cómo trabajas, aconsejar sobre candidaturas y cambiar tu comportamiento si el usuario lo pide. Responde en español, breve y útil.
+PERFIL:\n${profileText()}\n${rulesText()}\nRESUMEN: ${c.sent} candidaturas enviadas, ${c.resp} respondidas, ${c.wait} sin contestar, ${c.rej} rechazadas.
+Responde SOLO con JSON: {"reply":"tu respuesta","new_rules":["regla nueva si el usuario ha pedido un cambio estable de comportamiento; si no, lista vacía"]}]\n\n`;
+    turns[0]={role:"user",content:instruction+turns[0].content};
+    const r=await sample.json(turns,{modelTier:"default",cache:false});
+    chat.push({r:"a",t:String(r.reply||"…")});
+    (r.new_rules||[]).forEach(n=>{if(n&&!S.rules.includes(n)){S.rules.push(n);newRule=true}});
+  }catch(e){
+    chat.push({r:"a",t:e&&e.code==="no_runtime"?"La IA solo funciona abriendo el panel desde el enlace publicado en Claude, no desde un archivo descargado.":e&&e.code==="not_granted"?"Necesito que permitas usar Claude desde esta página para poder responder.":"No he podido responder ahora mismo. Inténtalo de nuevo en un momento."});
+  }
+  ss("chat",JSON.stringify(chat.slice(-30)));
+  busy=false;renderAgent();
+  if(newRule)save();
+}
+
+init();
+loadDb();
+initLocal();
+</script></body></html>
